@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation"; 
 import axios from "axios";
 import { toast } from "react-hot-toast";
+import PasswordToggle from "../components/PasswordToggle";
 
 export default function SignupPage() {
     const router = useRouter(); 
