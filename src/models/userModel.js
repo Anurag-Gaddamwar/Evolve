@@ -27,6 +27,8 @@ const userSchema = new mongoose.Schema({
     verifyToken: String,
     verifyTokenExpiry: Date,
     channelId: String, // Ensure this line is present
+    otpToken: String,
+    otpExpiry: Date,
     chats: {
         type: Array,
         default: [],

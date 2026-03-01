@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation"; 
 import axios from "axios";
 import { toast } from "react-hot-toast";
-import AppSidebarShell from "../components/AppSidebarShell";
 
 export default function SignupPage() {
     const router = useRouter(); 
@@ -14,6 +13,7 @@ export default function SignupPage() {
         password: "",
         channelId: "", 
     });
+    const [showPassword, setShowPassword] = useState(false);
     const [buttonDisabled, setButtonDisabled] = useState(true);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -23,6 +23,7 @@ export default function SignupPage() {
             setLoading(true);
             const response = await axios.post("/api/users/signup", user); 
             console.log("Signup success", response.data);
+            toast.success('Account created successfully');
             router.push("/");
         } catch (err: any) {
             // axios error may not have response or data
@@ -48,8 +49,7 @@ export default function SignupPage() {
     };
 
         return (
-            <AppSidebarShell title="Sign Up" showSidebar={false} showLogout={false}>
-            <div className="min-h-full theme-text flex items-center justify-center">
+            <div className="min-h-screen theme-text flex items-center justify-center">
             <div className= "border border-[#2a2a2a] shadow-lg rounded-2xl sm:p-30 lg:px-40 md:p-20 theme-shadow bg-[#1a1a1a]">
           <div className="flex flex-col md:flex-row w-full max-w-6xl mx-auto">
             {/* Left half with welcoming message and quote */}
@@ -96,18 +96,19 @@ export default function SignupPage() {
                                     />
                                 </div>
                                 {/* Password input */}
-                                <div>
+                                <div className="relative">
                                     <label htmlFor="password" className="block text-sm font-medium theme-muted">Password</label>
                                     <input
-                                        type="password"
+                                        type={showPassword ? 'text' : 'password'}
                                         id="password"
                                         value={user.password}
                                         onChange={(e) => setUser({ ...user, password: e.target.value })}
-                                        className="theme-input mt-1 block w-full p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
+                                        className="theme-input mt-1 block w-full pr-10 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
                                         required
                                         placeholder='Enter the password'
                                         autoComplete='current-password'
                                     />
+                                    <PasswordToggle show={showPassword} onToggle={() => setShowPassword((prev) => !prev)} />
                                 </div>
                                 {/* Channel ID input */}
                                 <div>
@@ -134,6 +135,5 @@ export default function SignupPage() {
                     </div>
                 </div>
             </div>
-            </AppSidebarShell>
     );
 };

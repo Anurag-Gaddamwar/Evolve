@@ -144,7 +144,7 @@ export default function ProfilePage() {
 
   const fetchVideos = async (channelId: string) => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
+      const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
       const response = await axios.get(`${apiUrl}/api/get-videos?channelId=${channelId}`);
       return response.data?.videoIds || [];
     } catch (error) {

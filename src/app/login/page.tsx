@@ -4,7 +4,6 @@ import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { toast } from "react-hot-toast";
-import AppSidebarShell from "../components/AppSidebarShell";
 
 interface User {
   email: string;
@@ -19,6 +18,7 @@ export default function LoginPage() {
   const [buttonDisabled, setButtonDisabled] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null); // State for error handling
   const [loading, setLoading] = useState<boolean>(false); // State for loading indicator
+  const [showPassword, setShowPassword] = useState(false);
 
   const onLogin = async (e) => {
     e.preventDefault(); // Prevent default form submission behavior
@@ -44,8 +44,7 @@ export default function LoginPage() {
 
 
   return (
-    <AppSidebarShell title="Login" showSidebar={false} showLogout={false}>
-      <div className="min-h-full theme-text flex items-center justify-center">
+      <div className="min-h-screen theme-text flex items-center justify-center">
       <div className="border border-[#2a2a2a] rounded-2xl sm:p-30 lg:px-40 md:p-20 theme-shadow bg-[#1a1a1a]">
         <div className="flex flex-col md:flex-row w-full max-w-6xl mx-auto">
           {/* Left half with welcoming message and quote */}
@@ -77,14 +76,14 @@ export default function LoginPage() {
                 />
               </div>
               {/* Password input */}
-              <div>
+              <div className="relative">
                 <label htmlFor="password" className="block text-sm font-medium theme-muted">Password</label>
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   id="password"
                   value={user.password}
                   onChange={(e) => setUser({ ...user, password: e.target.value })}
-                  className="theme-input mt-1 block w-full p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="theme-input mt-1 block w-full pr-10 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
                   required
                   placeholder="Enter the password"
                   autoComplete='current-password'
@@ -99,15 +98,14 @@ export default function LoginPage() {
                 {loading ? "..." : "Login"} 
               </button>
             </form>
-            <div className="flex justify-between mt-4">
-              <p className="text-sm theme-muted">Don't have an account? <Link href="/signup" className="theme-accent hover:underline">Sign Up</Link></p>
-              <p className="text-sm theme-muted"><Link href="/forgot-password" className="theme-accent hover:underline">Forgot Password?</Link></p>
+            <div className="flex flex-wrap items-center justify-center gap-4 mt-4 text-sm theme-muted">
+              <p>Don't have an account? <Link href="/signup" className="theme-accent hover:underline">Sign Up</Link></p>
+              <p><Link href="/forgot-password" className="theme-accent hover:underline">Forgot Password?</Link></p>
             </div>
           </div>
         </div>
       </div>
     </div>
-    </AppSidebarShell>
   );
   
   

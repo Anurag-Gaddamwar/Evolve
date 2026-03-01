@@ -75,6 +75,7 @@ function BotChat() {
   const [chatSearch, setChatSearch] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
+  const [copiedMessageId, setCopiedMessageId] = useState('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileHistoryOpen, setIsMobileHistoryOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -760,29 +761,52 @@ function BotChat() {
               )}
 
               {activeMessages.map((message) => (
-                <div key={message.id} className={`w-full ${message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}`}>
+                <div key={message.id} className={`group w-full ${message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}`}>
                   <div
-                    className={`max-w-[85%] md:max-w-3xl whitespace-pre-wrap rounded-xl md:rounded-2xl px-3 md:px-4 py-2.5 md:py-3 text-[15px] md:text-base leading-6 md:leading-8 ${
+                    className={`relative max-w-[85%] md:max-w-3xl whitespace-pre-wrap rounded-xl md:rounded-2xl px-3 md:px-4 py-2.5 md:py-3 text-[15px] md:text-base leading-6 md:leading-8 ${
                       message.role === 'user'
                         ? 'bg-[#2d2d2d] text-[#f3f3f3]'
                         : 'bg-[#2a2a2a] text-[#ededed] border border-[#383838]'
                     }`}
                   >
                     {message.text}
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(message.text || '');
+                        setCopiedMessageId(message.id);
+                        setTimeout(() => setCopiedMessageId(''), 2000);
+                      }}
+                      className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-xs text-[#a0a0a0] hover:text-white transition-colors"
+                      aria-label="Copy message"
+                    >
+                      {copiedMessageId === message.id ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-4 h-4 text-green-400">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 114 0m-4 0h4" />
+                        </svg>
+                      )}
+                    </button>
                   </div>
                 </div>
               ))}
 
               {isSending && (
                 <div className="w-full flex justify-start">
-                  <div className="max-w-[85%] md:max-w-3xl rounded-xl md:rounded-2xl px-3 md:px-4 py-2.5 md:py-3 text-[15px] md:text-base leading-6 md:leading-8 bg-[#2a2a2a] border border-[#383838] text-[#bdbdbd]">
+                  <div className="max-w-[85%] md:max-w-3xl rounded-xl md:rounded-2xl px-3 md:px-4 py-2.5 md:py-3 text-[15px] md:text-base leading-6 md:leading-8 bg-[#2a2a2a] border border-[#383838] text-[#bdbdbd] flex items-center gap-2">
+                    <svg className="w-5 h-5 animate-spin text-[#bdbdbd]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
                     Thinking...
                   </div>
                 </div>
               )}
 
               {showJumpToLatest && (
-                <div className={`sticky ${isMobile ? (isKeyboardOpen ? 'bottom-[88px]' : 'bottom-[120px]') : 'bottom-2'} flex justify-center`}>
+                <div className={`sticky ${isMobile ? (isKeyboardOpen ? 'bottom-[80px]' : 'bottom-[16px]') : 'bottom-2'} flex justify-center`}>
                   <button
                     onClick={() => {
                       shouldStickToBottomRef.current = true;
@@ -813,8 +837,14 @@ function BotChat() {
                 <button
                   onClick={handleSendClick}
                   disabled={isSending || !input.trim()}
-                  className="h-11 min-w-11 rounded-full bg-[#3b3b3b] px-4 text-sm text-white disabled:opacity-45 self-end"
+                  className="h-11 min-w-11 rounded-full bg-[#3b3b3b] px-4 text-sm text-white disabled:opacity-45 self-end flex items-center justify-center gap-2"
                 >
+                  {isSending && (
+                    <svg className="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                  )}
                   Send
                 </button>
               </div>
@@ -835,13 +865,19 @@ function BotChat() {
                   onKeyDown={handleKeyDown}
                   rows={1}
                   placeholder="Ask Evolve"
-                  className="w-full bg-transparent outline-none resize-none text-[#ececec] placeholder:text-[#a4a4a4] leading-7 py-1.5 min-h-[28px] max-h-[260px] overflow-y-auto app-scrollbar"
+                  className="w-full bg-transparent outline-none resize-none text-[#ececec] placeholder:text-[#a4a4a4] leading-7 py-1.5 min-h-[22px] max-h-[260px] overflow-y-auto app-scrollbar"
                 />
                 <button
                   onClick={handleSendClick}
                   disabled={isSending || !input.trim()}
-                  className="h-11 min-w-11 rounded-full bg-[#3b3b3b] px-4 text-sm text-white disabled:opacity-45 self-end"
+                  className="h-11 min-w-11 rounded-full bg-[#3b3b3b] px-4 text-sm text-white disabled:opacity-45 self-end flex items-center justify-center gap-2"
                 >
+                  {isSending && (
+                    <svg className="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                  )}
                   Send
                 </button>
               </div>

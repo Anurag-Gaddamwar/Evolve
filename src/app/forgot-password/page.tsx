@@ -4,7 +4,6 @@ import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
-import AppSidebarShell from '../components/AppSidebarShell';
 
 export default function ForgotPasswordPage() {
     const router = useRouter();
@@ -18,11 +17,17 @@ export default function ForgotPasswordPage() {
         setError(null);
         try {
             const res = await axios.post('/api/users/forgotpassword', { email });
-            toast.success('Reset link generated');
-            // if token returned navigate to reset page
-            if (res.data.hashedToken) {
-                // encode token so special chars (slashes) don't break the path
-                router.push(`/reset-password/${encodeURIComponent(res.data.hashedToken)}`);
+            // only navigate forward if backend confirmed a token was generated
+            if (res?.data?.success) {
+                setError(null);
+                toast.success('OTP sent to email');
+                router.push('/reset-password');
+            } else {
+                // email not registered; remain on page and show explicit error
+                const msg = res?.data?.message || 'Email is not registered';
+                setError(msg);
+                // use error toast to emphasize
+                toast.error(msg);
             }
         } catch (err: any) {
             const msg = err?.response?.data?.error || err.message;
@@ -34,8 +39,7 @@ export default function ForgotPasswordPage() {
     };
 
     return (
-        <AppSidebarShell title="Forgot Password">
-            <div className="min-h-full theme-text flex items-center justify-center">
+        <div className="min-h-screen theme-text flex items-center justify-center">
             <div className="border border-[#2a2a2a] rounded-2xl sm:p-30 lg:px-40 md:p-20 theme-shadow bg-[#1a1a1a]">
                 <div className="flex flex-col md:flex-row w-full max-w-6xl mx-auto">
                     <div className="md:w-1/2 rounded-2xl theme-surface p-8">
@@ -44,7 +48,7 @@ export default function ForgotPasswordPage() {
                             <h1 className="text-2xl font-semibold">EVOLVE</h1>
                         </div>
                         <h2 className="text-3xl font-bold mb-6 text-center md:text-left">Forgot Password?</h2>
-                        <p className="text-lg text-center md:text-left">Enter your email and we'll send a reset link.</p>
+                        <p className="text-lg text-center md:text-left">Enter your email and we'll send a one-time code (OTP) to reset your password.</p>
                     </div>
                     <div className="md:w-1/2 rounded-2xl theme-surface p-8">
                         <h2 className="text-3xl font-bold mb-6 text-center">Reset</h2>
@@ -67,7 +71,7 @@ export default function ForgotPasswordPage() {
                                 className="w-full py-2 px-4 theme-accent-bg cursor-pointer font-semibold rounded-lg shadow-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-opacity-75"
                                 disabled={!email || loading}
                             >
-                                {loading ? '...' : 'Send Link'}
+                                {loading ? '...' : 'Send OTP'}
                             </button>
                         </form>
                         <div className="text-center mt-4">
@@ -77,6 +81,5 @@ export default function ForgotPasswordPage() {
                 </div>
             </div>
         </div>
-        </AppSidebarShell>
     );
 }

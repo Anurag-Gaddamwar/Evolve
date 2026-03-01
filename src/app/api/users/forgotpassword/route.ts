@@ -13,12 +13,13 @@ export async function POST(request: NextRequest){
         }
         const user = await User.findOne({ email });
         if (!user) {
-            // don't reveal that user doesn't exist to avoid account enumeration
-            return NextResponse.json({ message: "If that email is registered, you will receive a reset link" });
+            // email not found – inform the client so it can display proper feedback
+            return NextResponse.json({ message: "Email is not registered", success: false });
         }
-        const { hashedToken } = await sendEmail({ emailType: 'RESET', userId: user._id, email });
-        // in production the hashedToken would be sent by email; here we return it so frontend can navigate
-        return NextResponse.json({ message: "Reset token generated", hashedToken, success: true });
+        // generate and email OTP
+        const { hashedToken } = await sendEmail({ emailType: 'OTP', userId: user._id, email });
+        // we do not return the OTP; only confirm
+        return NextResponse.json({ message: "OTP sent to email", success: true });
     } catch (error) {
         return NextResponse.json({ error: (error as any).message }, { status: 500 });
     }

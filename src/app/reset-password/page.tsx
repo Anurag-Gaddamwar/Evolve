@@ -1,17 +1,13 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 
-export default function ResetPasswordPage() {
+export default function ResetPasswordOTPPage() {
     const router = useRouter();
-    const params = useParams();
-    // token may be URI-encoded in the url
-    const token = params?.token ? decodeURIComponent(Array.isArray(params.token) ? params.token[0] : params.token) : '';
     const [otp, setOtp] = useState('');
-
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -29,20 +25,16 @@ export default function ResetPasswordPage() {
         setLoading(true);
         setError(null);
         try {
-            const payload: any = { token, password };
-            if (otp) payload.token = otp; // when using OTP override token
-            const res = await axios.post('/api/users/resetpassword', payload);
+            const res = await axios.post('/api/users/resetpassword', { token: otp, password });
             const msg = res?.data?.message || 'Password has been reset';
             toast.success(msg);
             setSuccessMsg(msg);
+            // give user a moment to see acknowledgement before redirect
             setTimeout(() => router.push('/login'), 2000);
         } catch (err: any) {
             const msg = err?.response?.data?.error || err.message;
             setError(msg);
             toast.error(msg);
-            if (msg && msg.toLowerCase().includes('invalid')) {
-                router.push('/forgot-password');
-            }
         } finally {
             setLoading(false);
         }
@@ -58,13 +50,12 @@ export default function ResetPasswordPage() {
                             <h1 className="text-2xl font-semibold">EVOLVE</h1>
                         </div>
                         <h2 className="text-3xl font-bold mb-6 text-center md:text-left">Reset Password</h2>
-                        <p className="text-lg text-center md:text-left">Enter a new password for your account.</p>
+                        <p className="text-lg text-center md:text-left">Enter the OTP you received and set a new password.</p>
                     </div>
                     <div className="md:w-1/2 rounded-2xl theme-surface p-8">
                         <h2 className="text-3xl font-bold mb-6 text-center">New Password</h2>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             {successMsg && <p className="text-green-400 text-sm text-center">{successMsg}</p>}
-                            {!token && (
                             <div>
                                 <label htmlFor="otp" className="block text-sm font-medium theme-muted">OTP code</label>
                                 <input
@@ -80,7 +71,6 @@ export default function ResetPasswordPage() {
                                     placeholder="Enter 6-digit code"
                                 />
                             </div>
-                            )}
                             <div className="relative">
                                 <label htmlFor="password" className="block text-sm font-medium theme-muted">Password</label>
                                 <input
@@ -88,7 +78,7 @@ export default function ResetPasswordPage() {
                                     id="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="theme-input mt-1 block w-full pr-10 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    className="theme-input mt-1 block w-full pr-12 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
                                     required
                                     placeholder="Enter new password"
                                 />
@@ -100,7 +90,7 @@ export default function ResetPasswordPage() {
                                     id="confirm"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className="theme-input mt-1 block w-full pr-10 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    className="theme-input mt-1 block w-full pr-12 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
                                     required
                                     placeholder="Re-enter password"
                                 />
@@ -109,7 +99,7 @@ export default function ResetPasswordPage() {
                             <button
                                 type="submit"
                                 className="w-full py-2 px-4 theme-accent-bg cursor-pointer text-white font-semibold rounded-lg shadow-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-opacity-75"
-                                disabled={!password || !confirmPassword || loading}
+                                disabled={!otp || !password || !confirmPassword || loading}
                             >
                                 {loading ? '...' : 'Reset Password'}
                             </button>
