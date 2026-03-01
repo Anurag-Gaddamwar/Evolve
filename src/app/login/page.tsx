@@ -26,11 +26,11 @@ export default function LoginPage() {
 
     try {
       const response = await axios.post("/api/users/login", user);
-      console.log("Login success", response.data);
+      // console.log("Login success", response.data);
       toast.success("Login success");
       window.location.replace("/");
     } catch (error: any) {
-      console.log("Login failed", error.message);
+      // console.log("Login failed", error.message);
       setError("Login failed. Please check your credentials."); // Set the error message
       toast.error(error.message);
     } finally {

@@ -47,7 +47,7 @@ async function fetchChannelDetails(channelId) {
       },
     });
     const item = response.data.items[0];
-    console.log('Channel brandingSettings:', item.brandingSettings);
+    // console.log('Channel brandingSettings:', item.brandingSettings);
     const details = {
       banner: item.brandingSettings?.image?.bannerImageUrl || item.brandingSettings?.image?.bannerTabletImageUrl || item.brandingSettings?.image?.bannerMobileImageUrl || null,
       description: item.snippet?.description || '',

@@ -92,7 +92,7 @@ export const sendEmail = async ({ emailType, userId, email }: any) => {
                 </div>`;
             // log the raw OTP in development for debugging
             if (process.env.NODE_ENV !== 'production') {
-                console.log(`DEBUG OTP for user ${userId}: ${rawToken}`);
+                // console.log(`DEBUG OTP for user ${userId}: ${rawToken}`);
             }
         } else if (emailType === 'PASSWORD_CHANGED') {
             subject = 'Evolve – your password has been changed';
@@ -122,7 +122,7 @@ export const sendEmail = async ({ emailType, userId, email }: any) => {
                 console.warn('Failed to send email:', mailErr.message);
             }
         } else if (email && !transporter) {
-            console.log('Email not sent because SMTP credentials are not configured.');
+            // console.log('Email not sent because SMTP credentials are not configured.');
         }
 
         return { hashedToken };

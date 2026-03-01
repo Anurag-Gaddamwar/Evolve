@@ -659,7 +659,7 @@ const CommentSummarizer = () => {
 
       // backend now returns a parsed object under `parsed` (and raw string if needed)
       const backendData = backendResponse.data || {};
-      console.log('AI backend response object:', backendData);
+      // console.log('AI backend response object:', backendData);
       
       // after we derive final report object below we will cache it
 
@@ -702,7 +702,8 @@ const CommentSummarizer = () => {
           return [];
         };
 
-        parsedSuggestions = asArray(aiData.suggestions);
+        // support the new name used by some backends
+      parsedSuggestions = asArray(aiData.suggestions || aiData.contentRecommendations);
         parsedConclusion = asArray(aiData.conclusion);
         sentimentObj = aiData.sentiment || null;
         questionsList = Array.isArray(aiData.questions) ? aiData.questions : [];

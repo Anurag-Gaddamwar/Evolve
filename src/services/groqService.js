@@ -129,7 +129,13 @@ function parseAIResponse(responseText) {
   }
 
   try {
-    return JSON.parse(cleaned);
+    const obj = JSON.parse(cleaned);
+    // some LLMs have started using the name
+    // "contentRecommendations" instead of "suggestions"; normalize here
+    if ((!obj.suggestions || (Array.isArray(obj.suggestions) && obj.suggestions.length === 0)) && obj.contentRecommendations) {
+      obj.suggestions = obj.contentRecommendations;
+    }
+    return obj;
   } catch (err) {
     // if trailing junk (like "Note: ..." or similar) was appended after
     // the JSON, attempt to chop everything after the last closing brace.
