@@ -81,29 +81,69 @@ export default function ResetPasswordPage() {
                                 />
                             </div>
                             )}
-                            <div className="relative">
+                            <div>
                                 <label htmlFor="password" className="block text-sm font-medium theme-muted">Password</label>
-                                <input
-                                    type={showPassword ? 'text' : 'password'}
-                                    id="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="theme-input mt-1 block w-full pr-10 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
-                                    required
-                                    placeholder="Enter new password"
-                                />
+                                <div className="relative mt-1">
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        id="password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="theme-input block w-full pr-12 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                        required
+                                        placeholder="Enter new password"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowPassword(p=>!p)}
+                                      className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-200"
+                                      tabIndex={-1}
+                                    >
+                                      {showPassword ? (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.269-2.943-9.543-7a9.968 9.968 0 012.223-3.502M9.879 9.879A3 3 0 0114.121 14.12" />
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6.225 6.225l11.55 11.55" />
+                                        </svg>
+                                      ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                      )}
+                                    </button>
+                                </div>
                             </div>
-                            <div className="relative">
+                            <div>
                                 <label htmlFor="confirm" className="block text-sm font-medium theme-muted">Confirm Password</label>
-                                <input
-                                    type={showConfirm ? 'text' : 'password'}
-                                    id="confirm"
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className="theme-input mt-1 block w-full pr-10 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
-                                    required
-                                    placeholder="Re-enter password"
-                                />
+                                <div className="relative mt-1">
+                                    <input
+                                        type={showConfirm ? 'text' : 'password'}
+                                        id="confirm"
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        className="theme-input block w-full pr-12 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                        required
+                                        placeholder="Re-enter password"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowConfirm(p=>!p)}
+                                      className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-200"
+                                      tabIndex={-1}
+                                    >
+                                      {showConfirm ? (
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-5 h-5">
+                                          <path d="M13.875 18.825l-1.35-1.35a4.992 4.992 0 01-3.525 1.65A4.992 4.992 0 016 14.325c0-1.32.51-2.52 1.35-3.425L5.475 7.05A9.964 9.964 0 002 11.25c3 3.75 6.75 5.25 10 5.25a9.977 9.977 0 005.5-1.5l-2.625-2.625zm4.95-4.95L18 11.25a4.992 4.992 0 01-1.65 3.525 4.992 4.992 0 01-3.525 1.65 4.992 4.992 0 01-3.525-1.65l-1.35 1.35a7.485 7.485 0 004.875 1.8c3.25 0 7-1.5 10-5.25a9.964 9.964 0 00-3.475-4.575z" fill="currentColor"/>
+                                          <path d="M12 9a3 3 0 003 3c.795 0 1.52-.315 2.05-.825l1.425 1.425A4.992 4.992 0 0112 15a4.992 4.992 0 01-3.525-1.65l1.425-1.425A2.996 2.996 0 0012 9z" fill="currentColor"/>
+                                        </svg>
+                                      ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-5 h-5">
+                                          <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5zm0 13c-3.04 0-5.5-2.46-5.5-5.5S8.96 6.5 12 6.5s5.5 2.46 5.5 5.5S15.04 17.5 12 17.5z" fill="currentColor"/>
+                                          <circle cx="12" cy="12" r="2.5" fill="currentColor"/>
+                                        </svg>
+                                      )}
+                                    </button>
+                                </div>
                             </div>
                             {error && <p className="text-red-500 text-xs italic">{error}</p>}
                             <button
@@ -115,7 +155,7 @@ export default function ResetPasswordPage() {
                             </button>
                         </form>
                         <div className="text-center mt-4">
-                            <p className="text-sm theme-muted">Remembered password? <Link href="/login" className="theme-accent hover:underline">Login</Link></p>
+                            <p className="text-sm text-gray-300">Remembered password? <Link href="/login" className="text-gray-300 hover:text-white underline">Login</Link></p>
                         </div>
                     </div>
                 </div>

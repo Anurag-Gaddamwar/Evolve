@@ -96,18 +96,38 @@ export default function SignupPage() {
                                     />
                                 </div>
                                 {/* Password input */}
-                                <div className="relative">
+                                <div>
                                     <label htmlFor="password" className="block text-sm font-medium theme-muted">Password</label>
-                                    <input
-                                        type={showPassword ? 'text' : 'password'}
-                                        id="password"
-                                        value={user.password}
-                                        onChange={(e) => setUser({ ...user, password: e.target.value })}
-                                        className="theme-input mt-1 block w-full pr-10 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
-                                        required
-                                        placeholder='Enter the password'
-                                        autoComplete='current-password'
-                                    />
+                                    <div className="relative mt-1">
+                                      <input
+                                          type={showPassword ? 'text' : 'password'}
+                                          id="password"
+                                          value={user.password}
+                                          onChange={(e) => setUser({ ...user, password: e.target.value })}
+                                          className="theme-input block w-full pr-12 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
+                                          required
+                                          placeholder='Enter the password'
+                                          autoComplete='current-password'
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowPassword(p=>!p)}
+                                        className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-200"
+                                        tabIndex={-1}
+                                      >
+                                        {showPassword ? (
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.269-2.943-9.543-7a9.968 9.968 0 012.223-3.502M9.879 9.879A3 3 0 0114.121 14.12" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6.225 6.225l11.55 11.55" />
+                                          </svg>
+                                        ) : (
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                          </svg>
+                                        )}
+                                      </button>
+                                    </div>
                                 </div>
                                 {/* Channel ID input */}
                                 <div>
@@ -128,7 +148,7 @@ export default function SignupPage() {
                                 </button>
                             </form>
                             <div className="text-center mt-4">
-                                <p className="text-sm theme-muted">Already have an account? <Link href="/login" className="theme-accent hover:underline">Login</Link></p>
+                                <p className="text-sm text-gray-300">Already have an account? <Link href="/login" className="text-gray-300 hover:text-white underline">Login</Link></p>
                             </div>
                         </div>
                     </div>

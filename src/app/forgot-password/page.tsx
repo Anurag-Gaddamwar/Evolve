@@ -47,11 +47,11 @@ export default function ForgotPasswordPage() {
                             <img src="/logo.png" alt="Logo" className="w-12 h-12 mr-2" />
                             <h1 className="text-2xl font-semibold">EVOLVE</h1>
                         </div>
-                        <h2 className="text-3xl font-bold mb-6 text-center md:text-left">Forgot Password?</h2>
+                        <h2 className="text-3xl font-bold mb-6 text-center md:text-left text-white">Forgot Password?</h2>
                         <p className="text-lg text-center md:text-left">Enter your email and we'll send a one-time code (OTP) to reset your password.</p>
                     </div>
                     <div className="md:w-1/2 rounded-2xl theme-surface p-8">
-                        <h2 className="text-3xl font-bold mb-6 text-center">Reset</h2>
+                        <h2 className="text-3xl font-bold mb-6 text-center text-white">Reset</h2>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
                                 <label htmlFor="email" className="block text-sm font-medium theme-muted">Email</label>
@@ -75,7 +75,7 @@ export default function ForgotPasswordPage() {
                             </button>
                         </form>
                         <div className="text-center mt-4">
-                            <p className="text-sm theme-muted">Remembered password? <Link href="/login" className="theme-accent hover:underline">Login</Link></p>
+                            <p className="text-sm text-gray-300">Remembered password? <Link href="/login" className="text-gray-300 hover:text-white underline">Login</Link></p>
                         </div>
                     </div>
                 </div>

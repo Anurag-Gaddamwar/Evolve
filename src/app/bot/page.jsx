@@ -6,6 +6,20 @@ import { useRouter } from 'next/navigation';
 const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 const createInitialChat = () => ({ id: createId(), title: 'New chat', updatedAt: Date.now(), pinned: false, messages: [] });
 
+// very lightweight inline markdown parser for **bold** and *italic* plus line breaks
+const renderMessageText = (raw) => {
+  if (!raw || typeof raw !== 'string') return raw;
+  // escape HTML first
+  let s = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // bold **text**
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // italic *text* (avoid converting inside bold markers)
+  s = s.replace(/\*(?!\*)([^*]+?)\*(?!\*)/g, '<em>$1</em>');
+  // preserve newlines
+  s = s.replace(/\n/g, '<br/>');
+  return <span dangerouslySetInnerHTML={{ __html: s }} />;
+};
+
 const STOPWORDS = new Set(['the','a','an','and','or','but','if','then','so','to','of','in','on','for','with','at','from','is','am','are','was','were','be','been','being','it','this','that','these','those','i','you','we','they','he','she','my','your','our','their','me','him','her','them','do','does','did','can','could','should','would','will','just','about','what','which','who','when','where','why','how','hi','hello','yes','no','ok','okay','there','here','please']);
 
 const deriveChatTitle = (messages = []) => {
@@ -261,14 +275,22 @@ export default function BotChat() {
       } catch {}
       if (!hc) hc = [createInitialChat()];
       setChats(hc);
+
+      // if we just arrived from login, create a fresh chat and ignore stored id
+      const justLoggedIn = sessionStorage.getItem('evolve_new_chat_on_login');
+      if (justLoggedIn) {
+        try { sessionStorage.removeItem('evolve_new_chat_on_login'); } catch {};
+      }
+
       const existing = sessionStorage.getItem(SESSION_KEY);
       const storedId = sessionStorage.getItem(ACTIVE_CHAT_KEY);
-      if (!existing) {
+      if (!existing || justLoggedIn) {
         sessionStorage.setItem(SESSION_KEY,'true');
-        const empty = hc.find(c=>!c?.messages?.length);
-        const id = empty?.id || hc[0]?.id || '';
-        if (!id) { const nc=createInitialChat(); setChats([nc,...hc]); setActiveChatId(nc.id); sessionStorage.setItem(ACTIVE_CHAT_KEY,nc.id); }
-        else { setActiveChatId(id); sessionStorage.setItem(ACTIVE_CHAT_KEY,id); }
+        // on first visit or after login, start fresh
+        const nc = createInitialChat();
+        setChats(prev => [nc, ...hc]);
+        setActiveChatId(nc.id);
+        sessionStorage.setItem(ACTIVE_CHAT_KEY,nc.id);
       } else {
         const exists = storedId && hc.some(c=>c.id===storedId);
         setActiveChatId(exists ? storedId : hc[0]?.id||'');
@@ -454,7 +476,7 @@ export default function BotChat() {
               {activeMessages.map(m=>(
                 <div key={m.id} className={`group flex ${m.role==='user'?'justify-end':'justify-start'}`}>
                   <div className="relative max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-base leading-7" style={{background:m.role==='user'?'#2d2d2d':'#2a2a2a',color:m.role==='user'?'#f3f3f3':'#ededed',border:m.role==='assistant'?'1px solid #383838':'none'}}>
-                    {m.text}
+                    {renderMessageText(m.text)}
                     <button onClick={()=>{navigator.clipboard.writeText(m.text||'');setCopiedId(m.id);setTimeout(()=>setCopiedId(''),2000);}} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity" style={{background:'none',border:'none',cursor:'pointer',padding:2}} aria-label="Copy">
                       {copiedId===m.id?<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#4ade80" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>:<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#a0a0a0" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 114 0m-4 0h4"/></svg>}
                     </button>
@@ -507,7 +529,7 @@ export default function BotChat() {
             {activeMessages.map(m=>(
               <div key={m.id} style={{ display:'flex', justifyContent:m.role==='user'?'flex-end':'flex-start' }}>
                 <div className="group" style={{ position:'relative', maxWidth:'85%', whiteSpace:'pre-wrap', borderRadius:18, padding:'10px 14px', fontSize:15, lineHeight:'24px', background:m.role==='user'?'#2d2d2d':'#2a2a2a', color:m.role==='user'?'#f3f3f3':'#ededed', border:m.role==='assistant'?'1px solid #383838':'none' }}>
-                  {m.text}
+                  {renderMessageText(m.text)}
                   <button onClick={()=>{navigator.clipboard.writeText(m.text||'');setCopiedId(m.id);setTimeout(()=>setCopiedId(''),2000);}} className="opacity-0 group-hover:opacity-100" style={{ position:'absolute', top:4, right:4, background:'none', border:'none', cursor:'pointer', padding:2 }} aria-label="Copy">
                     {copiedId===m.id?<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#4ade80" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>:<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#a0a0a0" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 114 0m-4 0h4"/></svg>}
                   </button>
