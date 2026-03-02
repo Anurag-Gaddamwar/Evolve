@@ -15,7 +15,7 @@ export default function RootLayout({ children }) {
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
-      <body className="theme-transition font-sans overflow-x-hidden">
+      <body className="theme-transition font-sans overflow-x-hidden h-full">
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

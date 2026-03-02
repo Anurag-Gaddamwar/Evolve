@@ -5,7 +5,7 @@ import Link from 'next/link';
 const Intro = () => {
   return (
     <>
-      <div className="relative min-h-screen w-full overflow-hidden bg-black" style={{ minHeight: '100dvh' }}>
+      <div className="relative w-full overflow-hidden bg-black" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
         {/* background video (place hero-bg.mp4 in public folder or update src) */}
         {/* replace hero-bg.mp4 with your own full‑screen animation or video; add file to public/ */}
         <video

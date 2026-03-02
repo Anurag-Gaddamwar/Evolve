@@ -778,7 +778,7 @@ const CommentSummarizer = () => {
 
   return (
     <AppSidebarShell title="Analysis">
-      <div className="max-w-6xl w-full mx-auto text-[#ececec]">
+      <div className="max-w-full sm:max-w-6xl w-full mx-auto px-4 sm:px-6 text-[#ececec]">
         {/* header + form shown only before report generated */}
         {!hasLiveReport ? (
           <div className="rounded-xl border border-[#2a2a2a] bg-[#171717] p-6 md:p-8">

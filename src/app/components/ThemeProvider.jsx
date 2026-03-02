@@ -34,6 +34,18 @@ const ThemeProvider = ({ children }) => {
     setTheme(preferred);
   }, []);
 
+  // dynamic vh variable for mobile browsers (address bar hide/show)
+  useEffect(() => {
+    const setVh = () => {
+      if (typeof window !== 'undefined') {
+        document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
+      }
+    };
+    setVh();
+    window.addEventListener('resize', setVh);
+    return () => window.removeEventListener('resize', setVh);
+  }, []);
+
   useEffect(() => {
     if (typeof document !== 'undefined') {
       document.documentElement.setAttribute('data-theme', theme);

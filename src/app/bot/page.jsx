@@ -4,1105 +4,601 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation';
 
 const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+const createInitialChat = () => ({ id: createId(), title: 'New chat', updatedAt: Date.now(), pinned: false, messages: [] });
 
-const createInitialChat = () => ({
-  id: createId(),
-  title: 'New chat',
-  updatedAt: Date.now(),
-  pinned: false,
-  messages: [],
-});
-
-const STOPWORDS = new Set([
-  'the', 'a', 'an', 'and', 'or', 'but', 'if', 'then', 'so', 'to', 'of', 'in', 'on', 'for', 'with', 'at', 'from',
-  'is', 'am', 'are', 'was', 'were', 'be', 'been', 'being', 'it', 'this', 'that', 'these', 'those', 'i', 'you',
-  'we', 'they', 'he', 'she', 'my', 'your', 'our', 'their', 'me', 'him', 'her', 'them', 'do', 'does', 'did',
-  'can', 'could', 'should', 'would', 'will', 'just', 'about', 'what', 'which', 'who', 'when', 'where', 'why',
-  'how', 'hi', 'hello', 'yes', 'no', 'ok', 'okay', 'there', 'here', 'please'
-]);
+const STOPWORDS = new Set(['the','a','an','and','or','but','if','then','so','to','of','in','on','for','with','at','from','is','am','are','was','were','be','been','being','it','this','that','these','those','i','you','we','they','he','she','my','your','our','their','me','him','her','them','do','does','did','can','could','should','would','will','just','about','what','which','who','when','where','why','how','hi','hello','yes','no','ok','okay','there','here','please']);
 
 const deriveChatTitle = (messages = []) => {
-  if (!Array.isArray(messages) || messages.length === 0) {
-    return 'New chat';
-  }
-
-  const relevant = messages
-    .filter((msg) => (msg.role === 'user' || msg.role === 'assistant') && typeof msg.text === 'string')
-    .slice(-10);
-
-  const frequency = new Map();
-  for (const msg of relevant) {
-    const words = msg.text
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .split(/\s+/)
-      .filter((word) => word.length > 2 && !STOPWORDS.has(word));
-
-    for (const word of words) {
-      frequency.set(word, (frequency.get(word) || 0) + 1);
-    }
-  }
-
-  const topWords = [...frequency.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([word]) => word);
-
-  if (topWords.length > 0) {
-    return topWords
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' • ')
-      .slice(0, 48);
-  }
-
-  const firstUserMessage = messages.find((msg) => msg.role === 'user' && typeof msg.text === 'string' && msg.text.trim());
-  if (firstUserMessage) {
-    const text = firstUserMessage.text.trim();
-    return `${text.slice(0, 34)}${text.length > 34 ? '…' : ''}`;
-  }
-
+  if (!Array.isArray(messages) || !messages.length) return 'New chat';
+  const freq = new Map();
+  messages.filter(m => (m.role==='user'||m.role==='assistant') && typeof m.text==='string').slice(-10)
+    .forEach(m => m.text.toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(w => w.length>2 && !STOPWORDS.has(w)).forEach(w => freq.set(w,(freq.get(w)||0)+1)));
+  const top = [...freq.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3).map(([w])=>w);
+  if (top.length) return top.map(w=>w[0].toUpperCase()+w.slice(1)).join(' • ').slice(0,48);
+  const first = messages.find(m=>m.role==='user'&&typeof m.text==='string'&&m.text.trim());
+  if (first) { const t=first.text.trim(); return t.slice(0,34)+(t.length>34?'…':''); }
   return 'New chat';
 };
 
-function BotChat() {
+// ── Module-level sub-components (NEVER inside render — causes unmount/remount → blur → keyboard closes) ──
+
+const ChatActions = ({ chat, openMenuId, onRename, onPin, onDelete }) => {
+  if (openMenuId !== chat.id) return null;
+  return (
+    <div className="absolute right-1 top-9 z-20 w-36 rounded-md border border-[#3a3a3a] bg-[#1c1c1c] shadow-lg" onClick={e=>e.stopPropagation()}>
+      <button type="button" onClick={()=>onRename(chat.id)} className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2a2a] flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M4 20h4l10-10-4-4L4 16v4z"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 6l4 4"/></svg>
+        Rename
+      </button>
+      <button type="button" onClick={()=>onPin(chat.id)} className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2a2a] flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M9 4h6l-1 5 3 3H7l3-3-1-5z"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 12v8"/></svg>
+        {chat.pinned ? 'Unpin' : 'Pin'}
+      </button>
+      <button type="button" onClick={()=>onDelete(chat.id)} className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2a2a] text-red-300 flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18"/><path strokeLinecap="round" strokeLinejoin="round" d="M8 6V4h8v2"/><path strokeLinecap="round" strokeLinejoin="round" d="M19 6l-1 14H6L5 6"/><path strokeLinecap="round" strokeLinejoin="round" d="M10 11v6M14 11v6"/></svg>
+        Delete
+      </button>
+    </div>
+  );
+};
+
+const ChatList = ({ filteredChats, activeChatId, openMenuId, mobile, onSelect, onMenuToggle, onRename, onPin, onDelete }) => (
+  <div className="flex-1 min-h-0 overflow-y-auto app-scrollbar px-2 py-2" data-chat-actions-root>
+    {filteredChats.map(chat => (
+      <div
+        key={(mobile?'m-':'')+chat.id}
+        className={`group relative flex items-center justify-between rounded-lg px-2 py-2 mb-1 cursor-pointer border ${chat.id===activeChatId?'bg-[#242424] border-[#3a3a3a]':'bg-transparent border-transparent hover:bg-[#1f1f1f]'}`}
+        onClick={()=>onSelect(chat.id)}
+      >
+        <span className="text-sm truncate pr-2">
+          {chat.pinned && <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-3.5 h-3.5 inline-block mr-1 align-[-2px]"><path strokeLinecap="round" strokeLinejoin="round" d="M9 4h6l-1 5 3 3H7l3-3-1-5z"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 12v8"/></svg>}
+          {chat.title||'New chat'}
+        </span>
+        <button type="button" onClick={e=>{e.stopPropagation();onMenuToggle(chat.id);}} className="text-lg leading-none text-[#9f9f9f] hover:text-white px-1">⋯</button>
+        <ChatActions chat={chat} openMenuId={openMenuId} onRename={onRename} onPin={onPin} onDelete={onDelete} />
+      </div>
+    ))}
+    {filteredChats.length===0 && <div className="px-2 py-3 text-xs text-[#8f8f8f]">No chats found.</div>}
+  </div>
+);
+
+const InputBar = React.forwardRef(({ value, onChange, onKeyDown, onSend, isSending }, ref) => (
+  <div className="rounded-[26px] border border-[#3a3a3a] bg-[#2a2a2a] px-3 py-2 flex items-end gap-2 shadow-lg">
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={onChange}
+      onKeyDown={onKeyDown}
+      onTouchMove={e=>e.stopPropagation()}
+      rows={1}
+      placeholder="Ask Evolve"
+      className="w-full bg-transparent outline-none resize-none text-[#ececec] placeholder:text-[#a4a4a4] leading-6 py-1 min-h-[20px] max-h-[200px] overflow-y-auto app-scrollbar"
+      style={{ overscrollBehavior:'contain', WebkitOverflowScrolling:'touch' }}
+    />
+    <button onClick={onSend} disabled={isSending||!value.trim()} className="h-9 w-9 shrink-0 rounded-full bg-[#e5e5e5] disabled:opacity-45 self-end flex items-center justify-center" aria-label="Send">
+      {isSending
+        ? <svg className="w-4 h-4 animate-spin text-[#1a1a1a]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+        : <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" strokeWidth="2.5" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5M5 12l7-7 7 7"/></svg>
+      }
+    </button>
+  </div>
+));
+InputBar.displayName = 'InputBar';
+
+// ── Main component ──────────────────────────────────────────────────────────
+
+export default function BotChat() {
   const router = useRouter();
-  const [isMounted, setIsMounted] = useState(false);
-  const [chats, setChats] = useState([]);
-  const [activeChatId, setActiveChatId] = useState('');
-  const [chatSessionId, setChatSessionId] = useState('');
-  const [userInitial, setUserInitial] = useState('U');
-  const [input, setInput] = useState('');
-  const [chatSearch, setChatSearch] = useState('');
-  const [isSending, setIsSending] = useState(false);
-  const [error, setError] = useState('');
-  const [copiedMessageId, setCopiedMessageId] = useState('');
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isMobileHistoryOpen, setIsMobileHistoryOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
-  const [mobileViewportTop, setMobileViewportTop] = useState(0);
-  const [openMenuChatId, setOpenMenuChatId] = useState('');
-  const [renameChatId, setRenameChatId] = useState('');
-  const [renameValue, setRenameValue] = useState('');
+  const [isMounted, setIsMounted]               = useState(false);
+  const [chats, setChats]                       = useState([]);
+  const [activeChatId, setActiveChatId]         = useState('');
+  const [chatSessionId, setChatSessionId]       = useState('');
+  const [userInitial, setUserInitial]           = useState('U');
+  const [input, setInput]                       = useState('');
+  const [chatSearch, setChatSearch]             = useState('');
+  const [isSending, setIsSending]               = useState(false);
+  const [error, setError]                       = useState('');
+  const [copiedId, setCopiedId]                 = useState('');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
+  const [isMobile, setIsMobile]                 = useState(false);
+  const [openMenuId, setOpenMenuId]             = useState('');
+  const [renameChatId, setRenameChatId]         = useState('');
+  const [renameValue, setRenameValue]           = useState('');
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
-  const [hasLoadedChats, setHasLoadedChats] = useState(false);
-  const messageContainerRef = useRef(null);
-  const inputRef = useRef(null);
-  const shouldStickToBottomRef = useRef(true);
+  const [hasLoadedChats, setHasLoadedChats]     = useState(false);
+  const [touchStartX, setTouchStartX]           = useState(0);
+  // Only used for showing/hiding nav bar — layout is handled via DOM refs
+  const [keyboardOpen, setKeyboardOpen]         = useState(false);
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const msgContainerRef  = useRef(null);
+  const desktopMsgRef    = useRef(null);
+  const mobileMsgRef     = useRef(null);
+  const inputRef         = useRef(null);
+  const inputWrapRef     = useRef(null); // the div wrapping InputBar on mobile
+  const navRef           = useRef(null); // mobile bottom nav
+  const stickToBottomRef = useRef(true);
+  const keyboardOpenRef  = useRef(false);
+  const kbTimerRef       = useRef(null);
+  const mobileLayoutApplyRef = useRef(null);
 
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  useEffect(() => {
-    if (!isMobile || typeof window === 'undefined') return;
-
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-
-    const detectKeyboard = () => {
-      const keyboardOpen = window.innerHeight - viewport.height > 120;
-      setIsKeyboardOpen(keyboardOpen);
-      setMobileViewportTop(viewport.offsetTop || 0);
-    };
-
-    detectKeyboard();
-    viewport.addEventListener('resize', detectKeyboard);
-    viewport.addEventListener('scroll', detectKeyboard);
-    return () => {
-      viewport.removeEventListener('resize', detectKeyboard);
-      viewport.removeEventListener('scroll', detectKeyboard);
-    };
+  const setDesktopMsgRef = useCallback((node) => {
+    desktopMsgRef.current = node;
+    if (!isMobile) msgContainerRef.current = node;
   }, [isMobile]);
 
-  const closeMobileHistory = useCallback(() => {
-    setIsMobileHistoryOpen(false);
-  }, []);
+  const setMobileMsgRef = useCallback((node) => {
+    mobileMsgRef.current = node;
+    if (isMobile) msgContainerRef.current = node;
+  }, [isMobile]);
 
-  const goToProfile = useCallback(() => {
-    closeMobileHistory();
-    router.push('/profile');
-  }, [closeMobileHistory, router]);
-
-  const goToAnalytics = useCallback(() => {
-    closeMobileHistory();
-    router.push('/analytics');
-  }, [closeMobileHistory, router]);
-
-  const goToBot = useCallback(() => {
-    closeMobileHistory();
-    router.push('/bot');
-  }, [closeMobileHistory, router]);
+  useEffect(() => { setIsMounted(true); }, []);
 
   useEffect(() => {
-    setChatSessionId(createId());
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
   }, []);
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // THE ONLY RIGHT WAY TO HANDLE MOBILE KEYBOARD WITHOUT BREAKING ANYTHING:
+  //
+  // Strategy: position:fixed for EVERYTHING on mobile.
+  //   • Header:        fixed top:0          — never moves, ever
+  //   • MsgContainer:  fixed top:48px, bottom changes via DOM ref
+  //   • InputWrap:     fixed bottom changes via DOM ref (sits above keyboard)
+  //   • NavBar:        fixed bottom:0, hidden when keyboard open
+  //
+  // On visualViewport resize → directly set bottom values via DOM refs.
+  // Zero React state changes for layout → zero re-renders → focus never lost.
+  //
+  // The only React state we set is keyboardOpen (debounced 200ms, after
+  // keyboard animation ends) just to toggle the nav bar visibility.
+  // ─────────────────────────────────────────────────────────────────────────
+  const HEADER_H = 48;
+  const NAV_H    = 61;
+  const INPUT_H  = 64; // approximate input bar + padding height
+
   useEffect(() => {
-    const loadUserInitial = async () => {
-      try {
-        const response = await fetch('/api/users/me', { method: 'GET' });
-        if (!response.ok) return;
+    if (typeof window === 'undefined') return;
+    const vv = window.visualViewport;
 
-        const data = await response.json();
-        const username = (data?.data?.username || '').toString().trim();
-        const email = (data?.data?.email || '').toString().trim();
+    const applyLayout = () => {
+      if (window.innerWidth >= 768) return; // desktop handles itself via flexbox
 
-        const firstName = username ? username.split(/\s+/)[0] : '';
-        const source = firstName || email;
-        const initial = source ? source.charAt(0).toUpperCase() : 'U';
-        setUserInitial(initial);
-      } catch (_error) {
-        // keep fallback initial
+      const vvHeight    = vv ? vv.height    : window.innerHeight;
+      const windowH     = window.innerHeight;
+      const kbHeight    = Math.max(0, windowH - vvHeight);
+      const kbIsOpen    = kbHeight > 120;
+
+      // Input bar: sits directly above keyboard (or above nav when closed)
+      const inputBottom = kbIsOpen ? kbHeight : NAV_H;
+      if (inputWrapRef.current) {
+        inputWrapRef.current.style.bottom = inputBottom + 'px';
+      }
+
+      const inputHeight = inputWrapRef.current ? inputWrapRef.current.offsetHeight : INPUT_H;
+
+      // Message container: fills space between header and input bar
+      const msgBottom = inputBottom + inputHeight;
+      if (msgContainerRef.current) {
+        msgContainerRef.current.style.bottom = msgBottom + 'px';
+      }
+
+      // Nav bar: hide instantly when keyboard opens, show when closes
+      if (navRef.current) {
+        navRef.current.style.display = kbIsOpen ? 'none' : 'block';
+      }
+
+      // Scroll to bottom if we were already there
+      if (stickToBottomRef.current) {
+        requestAnimationFrame(() => {
+          const el = msgContainerRef.current;
+          if (el) el.scrollTop = el.scrollHeight;
+        });
+      }
+
+      // Debounced React state — only for nav conditional render
+      if (kbIsOpen !== keyboardOpenRef.current) {
+        keyboardOpenRef.current = kbIsOpen;
+        clearTimeout(kbTimerRef.current);
+        kbTimerRef.current = setTimeout(() => setKeyboardOpen(kbIsOpen), 200);
       }
     };
 
-    loadUserInitial();
+    if (vv) {
+      vv.addEventListener('resize', applyLayout);
+      vv.addEventListener('scroll', applyLayout);
+    } else {
+      window.addEventListener('resize', applyLayout);
+    }
+    // Run once on mount to set initial layout
+    applyLayout();
+    mobileLayoutApplyRef.current = applyLayout;
+
+    return () => {
+      if (vv) { vv.removeEventListener('resize', applyLayout); vv.removeEventListener('scroll', applyLayout); }
+      else window.removeEventListener('resize', applyLayout);
+      clearTimeout(kbTimerRef.current);
+    };
+  }, []); // empty — never re-runs, never re-subscribes, never causes blur
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.innerWidth >= 768) return;
+    mobileLayoutApplyRef.current?.();
+  }, [error, input]);
+
+  const closeMobileHistory = useCallback(() => setMobileHistoryOpen(false), []);
+  const SESSION_KEY     = 'evolve_bot_session_active';
+  const ACTIVE_CHAT_KEY = 'evolve_bot_active_chat_id';
+
+  const goToProfile   = useCallback(() => { closeMobileHistory(); router.push('/profile');   }, [closeMobileHistory, router]);
+  const goToAnalytics = useCallback(() => { closeMobileHistory(); router.push('/analytics'); }, [closeMobileHistory, router]);
+  const goToBot       = useCallback(() => { closeMobileHistory(); router.push('/bot');       }, [closeMobileHistory, router]);
+
+  useEffect(() => { setChatSessionId(createId()); }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch('/api/users/me'); if (!r.ok) return;
+        const d = await r.json();
+        const src = ((d?.data?.username||'').trim().split(/\s+/)[0]) || (d?.data?.email||'').trim();
+        setUserInitial(src ? src[0].toUpperCase() : 'U');
+      } catch {}
+    })();
   }, []);
 
   useEffect(() => {
-    const loadChats = async () => {
-      let hydratedChats = null;
+    (async () => {
+      let hc = null;
       try {
-        const response = await fetch('/api/users/chats', { method: 'GET' });
-        if (response.status === 401) {
-          router.push('/login');
-          return;
-        }
-
-        if (response.ok) {
-          const data = await response.json();
-          const serverChats = Array.isArray(data?.chats) ? data.chats : [];
-          if (serverChats.length) {
-            hydratedChats = serverChats;
-          }
-        }
-      } catch (_error) {
-        // fallback to initial local in-memory chat
+        const r = await fetch('/api/users/chats');
+        if (r.status===401) { router.push('/login'); return; }
+        if (r.ok) { const d=await r.json(); const s=Array.isArray(d?.chats)?d.chats:[]; if(s.length) hc=s; }
+      } catch {}
+      if (!hc) hc = [createInitialChat()];
+      setChats(hc);
+      const existing = sessionStorage.getItem(SESSION_KEY);
+      const storedId = sessionStorage.getItem(ACTIVE_CHAT_KEY);
+      if (!existing) {
+        sessionStorage.setItem(SESSION_KEY,'true');
+        const empty = hc.find(c=>!c?.messages?.length);
+        const id = empty?.id || hc[0]?.id || '';
+        if (!id) { const nc=createInitialChat(); setChats([nc,...hc]); setActiveChatId(nc.id); sessionStorage.setItem(ACTIVE_CHAT_KEY,nc.id); }
+        else { setActiveChatId(id); sessionStorage.setItem(ACTIVE_CHAT_KEY,id); }
+      } else {
+        const exists = storedId && hc.some(c=>c.id===storedId);
+        setActiveChatId(exists ? storedId : hc[0]?.id||'');
       }
-
-      if (!hydratedChats) {
-        const initial = createInitialChat();
-        hydratedChats = [initial];
-      }
-
-      setChats(hydratedChats);
-      setActiveChatId(hydratedChats[0]?.id || '');
       setHasLoadedChats(true);
-    };
-
-    loadChats();
+    })();
   }, [router]);
 
+  useEffect(() => { if (hasLoadedChats&&activeChatId) sessionStorage.setItem(ACTIVE_CHAT_KEY,activeChatId); }, [activeChatId,hasLoadedChats]);
   useEffect(() => {
-    if (!hasLoadedChats) return;
-    if (!activeChatId) return;
-    if (!Array.isArray(chats)) return;
+    if (!hasLoadedChats||!activeChatId) return;
+    fetch('/api/users/chats',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({chats})}).catch(()=>{});
+  }, [chats,hasLoadedChats,activeChatId]);
 
-    const saveChats = async () => {
-      try {
-        await fetch('/api/users/chats', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ chats }),
-        });
-      } catch (_error) {
-        // ignore save errors; user can continue chatting
-      }
-    };
-
-    saveChats();
-  }, [chats, hasLoadedChats, activeChatId]);
+  useEffect(() => { stickToBottomRef.current=true; setShowJumpToLatest(false); setOpenMenuId(''); }, [activeChatId]);
 
   useEffect(() => {
-    shouldStickToBottomRef.current = true;
-    setShowJumpToLatest(false);
-    setOpenMenuChatId('');
-  }, [activeChatId]);
-
-  useEffect(() => {
-    const textarea = inputRef.current;
-    if (!textarea) return;
-
-    textarea.style.height = 'auto';
-    const maxHeight = 260;
-    const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
-    textarea.style.height = `${nextHeight}px`;
-    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden';
+    const ta=inputRef.current; if(!ta) return;
+    ta.style.height='auto';
+    ta.style.height=Math.min(ta.scrollHeight,200)+'px';
+    ta.style.overflowY=ta.scrollHeight>200?'auto':'hidden';
   }, [input]);
 
   useEffect(() => {
-    const handleOutsideClick = (event) => {
-      if (!openMenuChatId) return;
-      const clickedInsideMenu = event.target?.closest?.('[data-chat-actions-root="true"]');
-      if (!clickedInsideMenu) {
-        setOpenMenuChatId('');
-      }
-    };
-
-    const handleEscape = (event) => {
-      if (event.key === 'Escape') {
-        setOpenMenuChatId('');
-      }
-    };
-
-    document.addEventListener('mousedown', handleOutsideClick);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [openMenuChatId]);
-
-  const activeChat = useMemo(() => chats.find((chat) => chat.id === activeChatId), [chats, activeChatId]);
-  const activeMessages = activeChat?.messages || [];
-  const filteredChats = useMemo(() => {
-    const query = chatSearch.trim().toLowerCase();
-    const sorted = chats
-      .slice()
-      .sort((a, b) => {
-        const pinDiff = Number(!!b.pinned) - Number(!!a.pinned);
-        if (pinDiff !== 0) return pinDiff;
-        return (b.updatedAt || 0) - (a.updatedAt || 0);
-      });
-    if (!query) return sorted;
-    return sorted.filter((chat) => (chat.title || '').toLowerCase().includes(query));
-  }, [chatSearch, chats]);
-
-  const isChatEmpty = useCallback((chat) => !chat?.messages || chat.messages.length === 0, []);
-
-  const scrollToLatest = useCallback((smooth = true) => {
-    const container = messageContainerRef.current;
-    if (!container) return;
-    container.scrollTo({
-      top: container.scrollHeight,
-      behavior: smooth ? 'smooth' : 'auto',
+    if (!error) return;
+    if (!stickToBottomRef.current) return;
+    requestAnimationFrame(() => {
+      const el = msgContainerRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
     });
+  }, [error]);
+
+  useEffect(() => {
+    const outside = e => { if(!openMenuId) return; if(!e.target?.closest('[data-chat-actions-root]')) setOpenMenuId(''); };
+    const esc = e => { if(e.key==='Escape') setOpenMenuId(''); };
+    document.addEventListener('mousedown',outside);
+    document.addEventListener('keydown',esc);
+    return () => { document.removeEventListener('mousedown',outside); document.removeEventListener('keydown',esc); };
+  }, [openMenuId]);
+
+  const activeChat     = useMemo(() => chats.find(c=>c.id===activeChatId), [chats,activeChatId]);
+  const activeMessages = activeChat?.messages || [];
+
+  const filteredChats = useMemo(() => {
+    const q = chatSearch.trim().toLowerCase();
+    const sorted = [...chats].sort((a,b)=>(Number(!!b.pinned)-Number(!!a.pinned))||((b.updatedAt||0)-(a.updatedAt||0)));
+    return q ? sorted.filter(c=>(c.title||'').toLowerCase().includes(q)) : sorted;
+  }, [chatSearch,chats]);
+
+  const scrollToLatest = useCallback((smooth=true) => {
+    const el=msgContainerRef.current;
+    if(el) el.scrollTo({top:el.scrollHeight,behavior:smooth?'smooth':'auto'});
   }, []);
 
-  const handleMessageScroll = () => {
-    const container = messageContainerRef.current;
-    if (!container) return;
-    const distanceFromBottom = container.scrollHeight - (container.scrollTop + container.clientHeight);
-    const atBottom = distanceFromBottom < 72;
-    shouldStickToBottomRef.current = atBottom;
+  const handleScroll = (el) => {
+    if(!el) return;
+    const atBottom = el.scrollHeight-(el.scrollTop+el.clientHeight)<72;
+    stickToBottomRef.current=atBottom;
     setShowJumpToLatest(!atBottom);
   };
 
   useEffect(() => {
-    if (shouldStickToBottomRef.current) {
-      requestAnimationFrame(() => scrollToLatest(false));
-      setShowJumpToLatest(false);
-    }
-  }, [activeMessages.length, isSending, scrollToLatest]);
+    if(stickToBottomRef.current) { requestAnimationFrame(()=>scrollToLatest(false)); setShowJumpToLatest(false); }
+  }, [activeMessages,isSending,scrollToLatest]);
 
-  const createNewChat = () => {
-    const active = chats.find((chat) => chat.id === activeChatId);
-    if (active && isChatEmpty(active)) {
-      setActiveChatId(active.id);
-      setError('');
-      return;
-    }
+  const isChatEmpty = c => !c?.messages?.length;
 
-    const existingEmpty = chats.find((chat) => chat.id !== activeChatId && isChatEmpty(chat));
-    if (existingEmpty) {
-      setActiveChatId(existingEmpty.id);
-      setError('');
-      return;
-    }
+  const createNewChat = useCallback(() => {
+    const active=chats.find(c=>c.id===activeChatId);
+    if(active&&isChatEmpty(active)) { setError(''); return; }
+    const empty=chats.find(c=>c.id!==activeChatId&&isChatEmpty(c));
+    if(empty) { setActiveChatId(empty.id); setError(''); return; }
+    const nc=createInitialChat();
+    setChats(p=>[nc,...p]); setActiveChatId(nc.id); closeMobileHistory();
+    stickToBottomRef.current=true; setShowJumpToLatest(false); setInput(''); setError('');
+  }, [chats,activeChatId,closeMobileHistory]);
 
-    const newChat = createInitialChat();
-    setChats((prev) => [newChat, ...prev]);
-    setActiveChatId(newChat.id);
-    closeMobileHistory();
-    shouldStickToBottomRef.current = true;
-    setShowJumpToLatest(false);
-    setInput('');
-    setError('');
-  };
-
-  const deleteChat = (chatId) => {
-    setOpenMenuChatId('');
-    // keep history open when user deletes a chat
-    setChats((prev) => {
-      const filtered = prev.filter((chat) => chat.id !== chatId);
-      if (filtered.length) {
-        if (activeChatId === chatId) {
-          setActiveChatId(filtered[0].id);
-        }
-        return filtered;
-      }
-      const fallback = createInitialChat();
-      setActiveChatId(fallback.id);
-      return [fallback];
+  const deleteChat = useCallback(id => {
+    setOpenMenuId('');
+    setChats(prev => {
+      const f=prev.filter(c=>c.id!==id);
+      if(f.length) { if(activeChatId===id) setActiveChatId(f[0].id); return f; }
+      const fb=createInitialChat(); setActiveChatId(fb.id); return [fb];
     });
+  }, [activeChatId]);
+
+  const startRename   = useCallback(id => { const t=chats.find(c=>c.id===id); if(!t) return; setRenameChatId(id); setRenameValue(t.title||'New chat'); setOpenMenuId(''); }, [chats]);
+  const confirmRename = useCallback(() => { const v=renameValue.trim(); if(!renameChatId||!v){setRenameChatId('');setRenameValue('');return;} setChats(p=>p.map(c=>c.id===renameChatId?{...c,title:v.slice(0,48),updatedAt:Date.now()}:c)); setRenameChatId(''); setRenameValue(''); }, [renameChatId,renameValue]);
+  const cancelRename  = useCallback(() => { setRenameChatId(''); setRenameValue(''); }, []);
+  const togglePin     = useCallback(id => { setChats(p=>p.map(c=>c.id===id?{...c,pinned:!c.pinned}:c)); setOpenMenuId(''); }, []);
+  const handleMenuToggle = useCallback(id => { setOpenMenuId(p=>p===id?'':id); }, []);
+  const handleChatSelect = useCallback((id,closeMobile=false) => { setActiveChatId(id); if(closeMobile) closeMobileHistory(); }, [closeMobileHistory]);
+
+  const updateMsgs = (chatId, updater) => {
+    setChats(prev=>prev.map(c=>{
+      if(c.id!==chatId) return c;
+      const next=typeof updater==='function'?updater(c.messages):updater;
+      return {...c,messages:next,title:deriveChatTitle(next),updatedAt:Date.now()};
+    }));
   };
 
-  const startRenameChat = (chatId) => {
-    const target = chats.find((chat) => chat.id === chatId);
-    if (!target) return;
+  const handleSend = useCallback(async () => {
+    const msg=input.trim();
+    if(!msg||!activeChatId||isSending) return;
+    closeMobileHistory(); setError(''); setInput(''); setIsSending(true);
+    stickToBottomRef.current=true;
+    requestAnimationFrame(()=>{ const el=msgContainerRef.current; if(el) el.scrollTop=el.scrollHeight; });
 
-    setRenameChatId(chatId);
-    setRenameValue(target.title || 'New chat');
-    setOpenMenuChatId('');
-  };
-
-  const confirmRenameChat = () => {
-    const chatId = renameChatId;
-    const trimmed = renameValue.trim();
-    if (!chatId || !trimmed) {
-      setRenameChatId('');
-      setRenameValue('');
-      return;
-    }
-
-    setChats((prev) =>
-      prev.map((chat) =>
-        chat.id === renameChatId
-          ? { ...chat, title: trimmed.slice(0, 48), updatedAt: Date.now() }
-          : chat
-      )
-    );
-    setRenameChatId('');
-    setRenameValue('');
-  };
-
-  const cancelRenameChat = () => {
-    setRenameChatId('');
-    setRenameValue('');
-  };
-
-  const togglePinChat = (chatId) => {
-    setChats((prev) =>
-      prev.map((chat) =>
-        chat.id === chatId
-          ? { ...chat, pinned: !chat.pinned }
-          : chat
-      )
-    );
-    setOpenMenuChatId('');
-  };
-
-  const updateChatMessages = (chatId, updater) => {
-    setChats((prev) =>
-      prev.map((chat) => {
-        if (chat.id !== chatId) return chat;
-        const nextMessages = typeof updater === 'function' ? updater(chat.messages) : updater;
-        const title = deriveChatTitle(nextMessages);
-        return {
-          ...chat,
-          messages: nextMessages,
-          title,
-          updatedAt: Date.now(),
-        };
-      })
-    );
-  };
-
-  const handleSendClick = async () => {
-    const message = input.trim();
-    if (!message || !activeChatId || isSending) return;
-
-    closeMobileHistory();
-    setError('');
-    setInput('');
-    setIsSending(true);
-    shouldStickToBottomRef.current = true;
-
-    const userMessage = {
-      id: createId(),
-      role: 'user',
-      text: message,
-      createdAt: Date.now(),
-    };
-
-    const targetChatId = activeChatId;
-    const chatSnapshot = chats.find((chat) => chat.id === targetChatId);
-    const priorHistory = (chatSnapshot?.messages || [])
-      .filter(
-        (msg) =>
-          (msg.role === 'user' || msg.role === 'assistant') &&
-          typeof msg.text === 'string'
-      )
-      .map((msg) => ({
-        from: msg.role === 'assistant' ? 'assistant' : 'user',
-        text: msg.text,
-      }))
-      .slice(-20);
-
-    updateChatMessages(targetChatId, (prev) => [...prev, userMessage]);
-
+    const userMsg={id:createId(),role:'user',text:msg,createdAt:Date.now()};
+    const snap=chats.find(c=>c.id===activeChatId);
+    const history=(snap?.messages||[]).filter(m=>(m.role==='user'||m.role==='assistant')&&typeof m.text==='string').map(m=>({from:m.role==='assistant'?'assistant':'user',text:m.text})).slice(-20);
+    const tid=activeChatId;
+    updateMsgs(tid,p=>[...p,userMsg]);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/api/bot-response`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userRequest: message,
-          chatSessionId,
-          chatId: targetChatId,
-          chatHistory: priorHistory,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-
-      const data = await response.json();
-      const assistantText = (data.text || 'I could not generate a response.').replace(/Assistant:/g, '').trim();
-
-      updateChatMessages(targetChatId, (prev) => [
-        ...prev,
-        {
-          id: createId(),
-          role: 'assistant',
-          text: assistantText,
-          createdAt: Date.now(),
-        },
-      ]);
-    } catch (requestError) {
+      const api=process.env.NEXT_PUBLIC_BACKEND_URL||'http://localhost:3001';
+      const r=await fetch(`${api}/api/bot-response`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userRequest:msg,chatSessionId,chatId:tid,chatHistory:history})});
+      if(!r.ok) throw new Error('bad');
+      const d=await r.json();
+      const txt=(d.text||'I could not generate a response.').replace(/Assistant:/g,'').trim();
+      updateMsgs(tid,p=>[...p,{id:createId(),role:'assistant',text:txt,createdAt:Date.now()}]);
+      setTimeout(()=>{ stickToBottomRef.current=true; const el=msgContainerRef.current; if(el) el.scrollTop=el.scrollHeight; },80);
+    } catch(e) {
       setError('Error generating response. Please try again.');
-      updateChatMessages(targetChatId, (prev) => [
-        ...prev,
-        {
-          id: createId(),
-          role: 'assistant',
-          text: 'Sorry, I could not respond right now. Please try again.',
-          createdAt: Date.now(),
-        },
-      ]);
-      console.error('Error fetching bot response:', requestError);
-    } finally {
-      setIsSending(false);
-    }
-  };
+      updateMsgs(tid,p=>[...p,{id:createId(),role:'assistant',text:'Sorry, I could not respond right now.',createdAt:Date.now()}]);
+      console.error(e);
+    } finally { setIsSending(false); }
+  }, [input,activeChatId,isSending,chats,chatSessionId,closeMobileHistory]);
 
-  const handleKeyDown = (event) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      handleSendClick();
-    }
-  };
+  const handleKeyDown = useCallback(e => {
+    if(e.key==='Enter'&&!isMobile&&!e.shiftKey) { e.preventDefault(); handleSend(); }
+  }, [isMobile,handleSend]);
 
-  const handleInputChange = (event) => {
-    const nextValue = event.target.value;
-    setInput(nextValue);
+  const handleInputChange = useCallback(e => {
+    setInput(e.target.value);
+    const ta=inputRef.current; if(!ta) return;
+    ta.style.height='auto';
+    ta.style.height=Math.min(ta.scrollHeight,200)+'px';
+    ta.style.overflowY=ta.scrollHeight>200?'auto':'hidden';
+  }, []);
 
-    const textarea = inputRef.current;
-    if (!textarea) return;
+  if (!isMounted) return <div style={{position:'fixed',inset:0,background:'#212121'}} />;
 
-    textarea.style.height = 'auto';
-    const maxHeight = 260;
-    const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
-    textarea.style.height = `${nextHeight}px`;
-    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden';
-  };
-
-  if (!isMounted) {
-    return <div className="h-screen w-full bg-[#212121]" style={{ height: '100dvh' }} />;
-  }
+  const chatListProps = { filteredChats, activeChatId, openMenuId, onRename:startRename, onPin:togglePin, onDelete:deleteChat, onMenuToggle:handleMenuToggle };
 
   return (
-    <div
-      className="h-screen w-full overflow-hidden bg-[#212121] text-[#ececec]"
-      style={{ height: '100dvh' }}
-    >
-      <div className="h-full w-full flex">
-        <aside className="hidden md:flex h-full w-[60px] shrink-0 border-r border-[#2a2a2a] bg-[#171717] flex-col items-center py-3 gap-3">
-          <div className="w-8 h-8 rounded-full bg-[#202020] border border-[#313131] flex items-center justify-center text-xs">◎</div>
-          <button
-            onClick={() => {
-              if (typeof window !== 'undefined' && window.innerWidth < 768) {
-                setIsMobileHistoryOpen((prev) => !prev);
-                return;
-              }
-              setIsSidebarCollapsed((prev) => !prev);
-            }}
-            className="w-9 h-9 rounded-lg border border-[#333] text-[#d9d9d9] hover:bg-[#232323]"
-            title={isMobileHistoryOpen ? 'Close chats' : 'Open chats'}
-            aria-label={isMobileHistoryOpen ? 'Close chats' : 'Open chats'}
-          >
-            {(typeof window !== 'undefined' && window.innerWidth < 768)
-              ? (isMobileHistoryOpen ? '»' : '«')
-              : (isSidebarCollapsed ? '»' : '«')}
-          </button>
+    <div style={{ position:'fixed', inset:0, background:'#212121', overflow:'hidden', color:'#ececec' }}>
 
+      {/* ── Desktop layout (unchanged — pure flexbox, no fixed positioning needed) ── */}
+      <div className="hidden md:flex h-full w-full overflow-hidden">
+        {/* Icon sidebar */}
+        <aside className="h-full w-[60px] shrink-0 border-r border-[#2a2a2a] bg-[#171717] flex flex-col items-center py-3 gap-3">
+          <div className="w-8 h-8 rounded-full bg-[#202020] border border-[#313131] flex items-center justify-center text-xs">◎</div>
+          <button onClick={()=>setSidebarCollapsed(p=>!p)} className="w-9 h-9 rounded-lg border border-[#333] text-[#d9d9d9] hover:bg-[#232323]">{sidebarCollapsed?'»':'«'}</button>
           <div className="mt-auto flex flex-col items-center gap-3">
             <div className="mb-1 flex flex-col items-center">
-              <span className="[writing-mode:vertical-rl] rotate-180 text-[10px] uppercase tracking-[0.28em] text-[#7f7f7f]">
-                Features
-              </span>
-              <span className="text-[10px] text-[#7f7f7f] leading-none">↑</span>
+              <span className="[writing-mode:vertical-rl] rotate-180 text-[10px] uppercase tracking-[0.28em] text-[#7f7f7f]">Features</span>
+              <span className="text-[10px] text-[#7f7f7f]">↑</span>
             </div>
-            <button
-              onClick={goToBot}
-              className="w-9 h-9 rounded-lg border border-[#333] text-[#d9d9d9] hover:bg-[#232323]"
-              title="Open bot"
-              aria-label="Open bot"
-            >
-              ✦
-            </button>
-            <button
-              onClick={goToAnalytics}
-              className="w-9 h-9 rounded-lg border border-[#333] text-[#d9d9d9] hover:bg-[#232323]"
-              title="Open analysis"
-              aria-label="Open analysis"
-            >
-              ◉
-            </button>
-
-          <button
-            onClick={goToProfile}
-            className="w-8 h-8 rounded-full bg-[#1f7f67] text-[11px] font-semibold flex items-center justify-center hover:opacity-95"
-            title="Profile"
-            aria-label="Open profile"
-          >
-            {userInitial}
-          </button>
+            <button onClick={goToBot}       className="w-9 h-9 rounded-lg border border-[#333] text-[#d9d9d9] hover:bg-[#232323]">✦</button>
+            <button onClick={goToAnalytics} className="w-9 h-9 rounded-lg border border-[#333] text-[#d9d9d9] hover:bg-[#232323]">◉</button>
+            <button onClick={goToProfile}   className="w-8 h-8 rounded-full bg-[#1f7f67] text-[11px] font-semibold flex items-center justify-center hover:opacity-95">{userInitial}</button>
           </div>
         </aside>
-
-        <aside
-          className={`hidden md:block h-full shrink-0 border-r border-[#2a2a2a] bg-[#171717] transition-all duration-200 overflow-hidden ${
-            isSidebarCollapsed ? 'w-0' : 'w-[245px]'
-          }`}
-        >
+        {/* Chat list sidebar */}
+        <aside className={`h-full shrink-0 border-r border-[#2a2a2a] bg-[#171717] transition-all duration-200 overflow-hidden ${sidebarCollapsed?'w-0':'w-[245px]'}`}>
           <div className="h-full flex flex-col">
-            <div className="h-14 px-4 border-b border-[#2a2a2a] flex items-center justify-between">
-              <div className="font-semibold text-[15px]">Evolve</div>
-            </div>
-
-            <div className="p-3 border-b border-[#2a2a2a]">
-              <button
-                onClick={createNewChat}
-                className="w-full rounded-lg border border-[#3b3b3b] bg-[#1f1f1f] px-3 py-2 text-sm text-left hover:bg-[#262626]"
-              >
-                + New chat
-              </button>
-            </div>
-
-            <div className="px-3 py-3 border-b border-[#2a2a2a]">
-              <input
-                value={chatSearch}
-                onChange={(e) => setChatSearch(e.target.value)}
-                className="w-full rounded-lg bg-[#111] border border-[#2f2f2f] px-3 py-2 text-sm text-[#d6d6d6] placeholder:text-[#a0a0a0] outline-none"
-                placeholder="Search chats"
-              />
-            </div>
-
+            <div className="h-14 px-4 border-b border-[#2a2a2a] flex items-center"><span className="font-semibold text-[15px]">Evolve</span></div>
+            <div className="p-3 border-b border-[#2a2a2a]"><button onClick={createNewChat} className="w-full rounded-lg border border-[#3b3b3b] bg-[#1f1f1f] px-3 py-2 text-sm text-left hover:bg-[#262626]">+ New chat</button></div>
+            <div className="px-3 py-3 border-b border-[#2a2a2a]"><input value={chatSearch} onChange={e=>setChatSearch(e.target.value)} className="w-full rounded-lg bg-[#111] border border-[#2f2f2f] px-3 py-2 text-sm text-[#d6d6d6] placeholder:text-[#a0a0a0] outline-none" placeholder="Search chats" /></div>
             <div className="px-3 pt-3 text-xs uppercase tracking-wide text-[#9f9f9f]">Your chats</div>
-            <div className="flex-1 min-h-0 overflow-y-auto app-scrollbar px-2 py-2">
-              <div data-chat-actions-root="true">
-              {filteredChats.map((chat) => (
-                <div
-                  key={chat.id}
-                  className={`group relative flex items-center justify-between rounded-lg px-2 py-2 mb-1 cursor-pointer border ${
-                    chat.id === activeChatId
-                      ? 'bg-[#242424] border-[#3a3a3a]'
-                      : 'bg-transparent border-transparent hover:bg-[#1f1f1f]'
-                  }`}
-                  onClick={() => setActiveChatId(chat.id)}
-                >
-                  <span className="text-sm truncate pr-2">
-                    {chat.pinned && (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        className="w-3.5 h-3.5 inline-block mr-1 align-[-2px]"
-                        aria-hidden="true"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 4h6l-1 5 3 3H7l3-3-1-5z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 12v8" />
-                      </svg>
-                    )}
-                    {chat.title || 'New chat'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenMenuChatId((prev) => (prev === chat.id ? '' : chat.id));
-                    }}
-                    className="text-lg leading-none text-[#9f9f9f] hover:text-white px-1"
-                    aria-label={`Open actions for ${chat.title || 'chat'}`}
-                    title="Chat actions"
-                  >
-                    ⋯
-                  </button>
-
-                  {openMenuChatId === chat.id && (
-                    <div
-                      className="absolute right-1 top-9 z-20 w-36 rounded-md border border-[#3a3a3a] bg-[#1c1c1c] shadow-lg"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => startRenameChat(chat.id)}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2a2a] flex items-center gap-2"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          className="w-4 h-4"
-                          aria-hidden="true"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 20h4l10-10-4-4L4 16v4z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6l4 4" />
-                        </svg>
-                        <span>Rename</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => togglePinChat(chat.id)}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2a2a] flex items-center gap-2"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          className="w-4 h-4"
-                          aria-hidden="true"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 4h6l-1 5 3 3H7l3-3-1-5z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 12v8" />
-                        </svg>
-                        <span>{chat.pinned ? 'Unpin' : 'Pin'}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => deleteChat(chat.id)}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2a2a] text-red-300 flex items-center gap-2"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          className="w-4 h-4"
-                          aria-hidden="true"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 6V4h8v2" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 6l-1 14H6L5 6" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M10 11v6M14 11v6" />
-                        </svg>
-                        <span>Delete</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-              </div>
-              {filteredChats.length === 0 && (
-                <div className="px-2 py-3 text-xs text-[#8f8f8f]">No chats found.</div>
-              )}
-            </div>
+            <ChatList {...chatListProps} onSelect={id=>handleChatSelect(id,false)} />
           </div>
         </aside>
-
-        <section className="flex-1 min-w-0 min-h-0 flex flex-col bg-[#212121]">
-          <header
-            className="fixed top-0 inset-x-0 z-30 h-14 px-4 md:px-6 border-b border-[#2a2a2a] bg-[#212121] flex items-center md:justify-start md:static md:z-auto"
-            style={isMobile ? { transform: `translateY(${mobileViewportTop}px)` } : undefined}
-          >
-            <div className="flex items-center gap-2 font-semibold text-[28px] md:text-[30px] leading-none">
-              <span className="text-[29px] md:text-[31px]">Content Assistant</span>
-            </div>
-            <button
-              onClick={async () => {
-                try {
-                  await fetch('/api/users/logout', { method: 'GET' });
-                  router.push('/login');
-                } catch (error) {
-                  console.error('Logout failed:', error);
-                }
-              }}
-              className="ml-auto rounded-lg border border-[#3a3a3a] bg-[#242424] px-3 py-1 text-sm hover:bg-[#2f2f2f] transition-colors"
-            >
-              Logout
-            </button>
+        {/* Main */}
+        <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-[#212121]">
+          <header className="shrink-0 h-12 px-4 border-b border-[#2a2a2a] bg-[#171717] flex items-center justify-between">
+            <span className="font-semibold text-[20px]">Evolve</span>
+            <button onClick={async()=>{try{sessionStorage.removeItem(SESSION_KEY);await fetch('/api/users/logout',{method:'GET'});router.push('/login');}catch(e){console.error(e);}}} className="border border-[#3a3a3a] bg-[#242424] rounded-lg px-3 py-1 text-sm hover:bg-[#2f2f2f]">Logout</button>
           </header>
-
-          <div
-            ref={messageContainerRef}
-            onScroll={handleMessageScroll}
-            className={`flex-1 min-h-0 overflow-y-auto app-scrollbar ${
-              isMobile ? (isKeyboardOpen ? 'pt-14 pb-[88px]' : 'pt-14 pb-[150px]') : 'pb-0'
-            }`}
-          >
-            <div className="max-w-[900px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5">
-              {activeMessages.length === 0 && (
-                <div className="text-center text-[#a5a5a5] mt-20">
-                  Start a new conversation
-                </div>
-              )}
-
-              {activeMessages.map((message) => (
-                <div key={message.id} className={`group w-full ${message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}`}>
-                  <div
-                    className={`relative max-w-[85%] md:max-w-3xl whitespace-pre-wrap rounded-xl md:rounded-2xl px-3 md:px-4 py-2.5 md:py-3 text-[15px] md:text-base leading-6 md:leading-8 ${
-                      message.role === 'user'
-                        ? 'bg-[#2d2d2d] text-[#f3f3f3]'
-                        : 'bg-[#2a2a2a] text-[#ededed] border border-[#383838]'
-                    }`}
-                  >
-                    {message.text}
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(message.text || '');
-                        setCopiedMessageId(message.id);
-                        setTimeout(() => setCopiedMessageId(''), 2000);
-                      }}
-                      className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-xs text-[#a0a0a0] hover:text-white transition-colors"
-                      aria-label="Copy message"
-                    >
-                      {copiedMessageId === message.id ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-4 h-4 text-green-400">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-4 h-4">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 114 0m-4 0h4" />
-                        </svg>
-                      )}
+          <div ref={setDesktopMsgRef} onScroll={e=>handleScroll(e.currentTarget)} className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+            <div className="max-w-[900px] mx-auto px-6 py-8 flex flex-col gap-5">
+              {activeMessages.length===0 && <div className="text-center text-[#a5a5a5] mt-20">Start a new conversation</div>}
+              {activeMessages.map(m=>(
+                <div key={m.id} className={`group flex ${m.role==='user'?'justify-end':'justify-start'}`}>
+                  <div className="relative max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-base leading-7" style={{background:m.role==='user'?'#2d2d2d':'#2a2a2a',color:m.role==='user'?'#f3f3f3':'#ededed',border:m.role==='assistant'?'1px solid #383838':'none'}}>
+                    {m.text}
+                    <button onClick={()=>{navigator.clipboard.writeText(m.text||'');setCopiedId(m.id);setTimeout(()=>setCopiedId(''),2000);}} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity" style={{background:'none',border:'none',cursor:'pointer',padding:2}} aria-label="Copy">
+                      {copiedId===m.id?<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#4ade80" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>:<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#a0a0a0" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 114 0m-4 0h4"/></svg>}
                     </button>
                   </div>
                 </div>
               ))}
-
-              {isSending && (
-                <div className="w-full flex justify-start">
-                  <div className="max-w-[85%] md:max-w-3xl rounded-xl md:rounded-2xl px-3 md:px-4 py-2.5 md:py-3 text-[15px] md:text-base leading-6 md:leading-8 bg-[#2a2a2a] border border-[#383838] text-[#bdbdbd] flex items-center gap-2">
-                    <svg className="w-5 h-5 animate-spin text-[#bdbdbd]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                    </svg>
-                    Thinking...
-                  </div>
-                </div>
-              )}
-
+              {isSending && <div className="flex"><div className="rounded-2xl px-4 py-3 text-base bg-[#2a2a2a] border border-[#383838] text-[#bdbdbd] flex items-center gap-2"><svg className="w-5 h-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>Thinking...</div></div>}
+            </div>
+          </div>
+          <div className="shrink-0 px-6 py-3 bg-[#212121]">
+            <div className="max-w-[900px] mx-auto" style={{ position:'relative' }}>
               {showJumpToLatest && (
-                <div className={`sticky ${isMobile ? (isKeyboardOpen ? 'bottom-[80px]' : 'bottom-[16px]') : 'bottom-2'} flex justify-center`}>
-                  <button
-                    onClick={() => {
-                      shouldStickToBottomRef.current = true;
-                      scrollToLatest();
-                    }}
-                    className="text-xs rounded-full border border-[#3a3a3a] bg-[#2a2a2a] px-3 py-1 text-[#c8c8c8] hover:text-white"
-                  >
-                    Jump to latest
+                <button
+                  onClick={()=>{stickToBottomRef.current=true;scrollToLatest();}}
+                  className="text-xs rounded-full border border-[#3a3a3a] bg-[#2a2a2a] px-3 py-1 text-[#c8c8c8] hover:text-white shadow-[0_6px_18px_rgba(0,0,0,0.35)]"
+                  style={{ position:'absolute', top:-32, left:'50%', transform:'translateX(-50%)', zIndex:40 }}
+                >Jump to latest</button>
+              )}
+              <InputBar ref={inputRef} value={input} onChange={handleInputChange} onKeyDown={handleKeyDown} onSend={handleSend} isSending={isSending} />
+              {error && <p className="text-red-400 text-sm mt-2 text-center">{error}</p>}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Mobile layout — all layers are position:fixed ── */}
+      <div className="md:hidden">
+
+        {/*
+          HEADER — fixed top:0, always visible, never affected by keyboard.
+          z-index:30 so it sits above message content.
+        */}
+        <header style={{ position:'fixed', top:0, left:0, right:0, height:HEADER_H, zIndex:30, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 14px', borderBottom:'1px solid #2a2a2a', background:'#171717' }}>
+          <span style={{ fontWeight:600, fontSize:18 }}>Evolve</span>
+          <button onClick={async()=>{try{sessionStorage.removeItem(SESSION_KEY);await fetch('/api/users/logout',{method:'GET'});router.push('/login');}catch(e){console.error(e);}}} style={{ border:'1px solid #3a3a3a', background:'#242424', borderRadius:8, padding:'4px 12px', fontSize:14, color:'#ececec', cursor:'pointer' }}>Logout</button>
+        </header>
+
+        {/*
+          MESSAGE CONTAINER — fixed, top starts below header.
+          bottom is set dynamically via DOM ref in the visualViewport listener.
+          Initial bottom = NAV_H + INPUT_H so content is never hidden.
+        */}
+        <div
+          ref={setMobileMsgRef}
+          onScroll={e=>handleScroll(e.currentTarget)}
+          style={{ position:'fixed', top:HEADER_H, left:0, right:0, bottom: NAV_H + INPUT_H, overflowY:'auto', overscrollBehavior:'contain' }}
+        >
+          <div style={{ maxWidth:900, margin:'0 auto', padding:'24px 16px 8px', display:'flex', flexDirection:'column', gap:16 }}>
+            {activeMessages.length===0 && <div style={{ textAlign:'center', color:'#a5a5a5', marginTop:80 }}>Start a new conversation</div>}
+            {activeMessages.map(m=>(
+              <div key={m.id} style={{ display:'flex', justifyContent:m.role==='user'?'flex-end':'flex-start' }}>
+                <div className="group" style={{ position:'relative', maxWidth:'85%', whiteSpace:'pre-wrap', borderRadius:18, padding:'10px 14px', fontSize:15, lineHeight:'24px', background:m.role==='user'?'#2d2d2d':'#2a2a2a', color:m.role==='user'?'#f3f3f3':'#ededed', border:m.role==='assistant'?'1px solid #383838':'none' }}>
+                  {m.text}
+                  <button onClick={()=>{navigator.clipboard.writeText(m.text||'');setCopiedId(m.id);setTimeout(()=>setCopiedId(''),2000);}} className="opacity-0 group-hover:opacity-100" style={{ position:'absolute', top:4, right:4, background:'none', border:'none', cursor:'pointer', padding:2 }} aria-label="Copy">
+                    {copiedId===m.id?<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#4ade80" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>:<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#a0a0a0" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 114 0m-4 0h4"/></svg>}
                   </button>
                 </div>
-              )}
-            </div>
-          </div>
-
-          {!isMobile && (
-          <div className="shrink-0 border-t border-[#2a2a2a] px-4 md:px-6 py-4">
-            <div className="max-w-[900px] mx-auto">
-              <div className="rounded-[26px] border border-[#3a3a3a] bg-[#2a2a2a] px-4 py-3 flex items-end gap-3">
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
-                  rows={1}
-                  placeholder="Ask Evolve"
-                  className="w-full bg-transparent outline-none resize-none text-[#ececec] placeholder:text-[#a4a4a4] leading-7 py-1.5 min-h-[28px] max-h-[260px] overflow-y-auto app-scrollbar"
-                />
-                <button
-                  onClick={handleSendClick}
-                  disabled={isSending || !input.trim()}
-                  className="h-11 min-w-11 rounded-full bg-[#3b3b3b] px-4 text-sm text-white disabled:opacity-45 self-end flex items-center justify-center gap-2"
-                >
-                  {isSending && (
-                    <svg className="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                    </svg>
-                  )}
-                  Send
-                </button>
               </div>
-              {error && <p className="text-red-400 text-sm mt-2 text-center">{error}</p>}
-            </div>
-          </div>
-          )}
-        </section>
-
-        {isMobile && (
-          <div className={`md:hidden fixed inset-x-0 ${isKeyboardOpen ? 'bottom-0' : 'bottom-[61px]'} z-30 border-t border-[#2a2a2a] bg-[#212121] px-4 py-3`}>
-            <div className="max-w-[900px] mx-auto">
-              <div className="rounded-[26px] border border-[#3a3a3a] bg-[#2a2a2a] px-4 py-3 flex items-end gap-3">
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
-                  rows={1}
-                  placeholder="Ask Evolve"
-                  className="w-full bg-transparent outline-none resize-none text-[#ececec] placeholder:text-[#a4a4a4] leading-7 py-1.5 min-h-[22px] max-h-[260px] overflow-y-auto app-scrollbar"
-                />
-                <button
-                  onClick={handleSendClick}
-                  disabled={isSending || !input.trim()}
-                  className="h-11 min-w-11 rounded-full bg-[#3b3b3b] px-4 text-sm text-white disabled:opacity-45 self-end flex items-center justify-center gap-2"
-                >
-                  {isSending && (
-                    <svg className="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                    </svg>
-                  )}
-                  Send
-                </button>
-              </div>
-              {error && <p className="text-red-400 text-sm mt-2 text-center">{error}</p>}
-            </div>
-          </div>
-        )}
-
-        {isMobile && !isKeyboardOpen && (
-          <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 h-[61px] border-t border-[#2a2a2a] bg-[#171717] px-3 py-2">
-            <div className="grid grid-cols-4 gap-2">
-              <button
-                onClick={() => setIsMobileHistoryOpen(true)}
-                className="h-11 rounded-lg border border-[#333] text-[#d9d9d9] hover:bg-[#232323] text-sm"
-                aria-label="Open chats"
-              >
-                Chats
-              </button>
-              <button
-                onClick={goToBot}
-                className="h-11 rounded-lg border border-[#3a3a3a] bg-[#242424] text-white text-sm"
-                aria-label="Open assistant"
-              >
-                Assistant
-              </button>
-              <button
-                onClick={goToAnalytics}
-                className="h-11 rounded-lg border border-[#333] text-[#d9d9d9] hover:bg-[#232323] text-sm"
-                aria-label="Open analysis"
-              >
-                Analysis
-              </button>
-              <button
-                onClick={goToProfile}
-                className="h-11 rounded-lg border border-[#333] text-[#d9d9d9] hover:bg-[#232323] text-sm"
-                aria-label="Open profile"
-              >
-                Profile
-              </button>
-            </div>
-          </nav>
-        )}
-
-        <div
-          className={`md:hidden fixed inset-0 z-40 transition-opacity duration-200 ${
-            isMobileHistoryOpen ? 'opacity-100 pointer-events-auto bg-black/60' : 'opacity-0 pointer-events-none bg-black/0'
-          }`}
-          onClick={closeMobileHistory}
-        >
-          <div
-            className={`h-full w-[280px] max-w-[85vw] bg-[#171717] border-r border-[#2a2a2a] flex flex-col transform transition-transform duration-250 ease-out ${
-              isMobileHistoryOpen ? 'translate-x-0' : '-translate-x-full'
-            }`}
-            onClick={(e) => e.stopPropagation()}
-          >
-              <div className="h-14 px-4 border-b border-[#2a2a2a] flex items-center justify-between">
-                <div className="font-semibold text-[15px]">Evolve</div>
-                <button
-                  onClick={closeMobileHistory}
-                  className="text-xs rounded-md border border-[#343434] px-2 py-1 hover:bg-[#222]"
-                  aria-label="Close chats"
-                >
-                  Close
-                </button>
-              </div>
-
-              <div className="p-3 border-b border-[#2a2a2a]">
-                <button
-                  onClick={createNewChat}
-                  className="w-full rounded-lg border border-[#3b3b3b] bg-[#1f1f1f] px-3 py-2 text-sm text-left hover:bg-[#262626]"
-                >
-                  + New chat
-                </button>
-              </div>
-
-              <div className="px-3 py-3 border-b border-[#2a2a2a]">
-                <input
-                  value={chatSearch}
-                  onChange={(e) => setChatSearch(e.target.value)}
-                  className="w-full rounded-lg bg-[#111] border border-[#2f2f2f] px-3 py-2 text-sm text-[#d6d6d6] placeholder:text-[#a0a0a0] outline-none"
-                  placeholder="Search chats"
-                />
-              </div>
-
-              <div className="px-3 pt-3 text-xs uppercase tracking-wide text-[#9f9f9f]">Your chats</div>
-              <div className="flex-1 min-h-0 overflow-y-auto app-scrollbar px-2 py-2">
-                <div data-chat-actions-root="true">
-                {filteredChats.map((chat) => (
-                  <div
-                    key={`m-${chat.id}`}
-                    className={`group relative flex items-center justify-between rounded-lg px-2 py-2 mb-1 cursor-pointer border ${
-                      chat.id === activeChatId
-                        ? 'bg-[#242424] border-[#3a3a3a]'
-                        : 'bg-transparent border-transparent hover:bg-[#1f1f1f]'
-                    }`}
-                    onClick={() => {
-                      setActiveChatId(chat.id);
-                      closeMobileHistory();
-                    }}
-                  >
-                    <span className="text-sm truncate pr-2">
-                      {chat.pinned && (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          className="w-3.5 h-3.5 inline-block mr-1 align-[-2px]"
-                          aria-hidden="true"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 4h6l-1 5 3 3H7l3-3-1-5z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 12v8" />
-                        </svg>
-                      )}
-                      {chat.title || 'New chat'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setOpenMenuChatId((prev) => (prev === chat.id ? '' : chat.id));
-                      }}
-                      className="text-lg leading-none text-[#9f9f9f] hover:text-white px-1"
-                      aria-label={`Open actions for ${chat.title || 'chat'}`}
-                      title="Chat actions"
-                    >
-                      ⋯
-                    </button>
-
-                    {openMenuChatId === chat.id && (
-                      <div
-                        className="absolute right-1 top-9 z-20 w-36 rounded-md border border-[#3a3a3a] bg-[#1c1c1c] shadow-lg"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => startRenameChat(chat.id)}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2a2a] flex items-center gap-2"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-4 h-4" aria-hidden="true">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 20h4l10-10-4-4L4 16v4z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6l4 4" />
-                          </svg>
-                          <span>Rename</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => togglePinChat(chat.id)}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2a2a] flex items-center gap-2"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-4 h-4" aria-hidden="true">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 4h6l-1 5 3 3H7l3-3-1-5z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 12v8" />
-                          </svg>
-                          <span>{chat.pinned ? 'Unpin' : 'Pin'}</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteChat(chat.id)}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2a2a] text-red-300 flex items-center gap-2"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-4 h-4" aria-hidden="true">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 6V4h8v2" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 6l-1 14H6L5 6" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M10 11v6M14 11v6" />
-                          </svg>
-                          <span>Delete</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                </div>
-                {filteredChats.length === 0 && (
-                  <div className="px-2 py-3 text-xs text-[#8f8f8f]">No chats found.</div>
-                )}
-              </div>
+            ))}
+            {isSending && <div style={{ display:'flex' }}><div style={{ borderRadius:18, padding:'10px 14px', fontSize:15, background:'#2a2a2a', border:'1px solid #383838', color:'#bdbdbd', display:'flex', alignItems:'center', gap:8 }}><svg className="w-5 h-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>Thinking...</div></div>}
           </div>
         </div>
 
-        {renameChatId && (
-          <div
-            className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center px-4"
-            onClick={cancelRenameChat}
+        {/*
+          INPUT BAR — fixed, bottom is set dynamically via DOM ref.
+          Initial bottom = NAV_H (above nav bar).
+          When keyboard opens → bottom = keyboardHeight (directly above keyboard).
+          z-index:20 so it's above messages but below header.
+        */}
+        <div
+          ref={inputWrapRef}
+          style={{ position:'fixed', left:0, right:0, bottom:NAV_H, zIndex:20, padding:'6px 14px 8px', background:'#212121' }}
+        >
+          <div style={{ maxWidth:900, margin:'0 auto', position:'relative' }}>
+            {showJumpToLatest && (
+              <button
+                onClick={()=>{stickToBottomRef.current=true;scrollToLatest();}}
+                style={{ position:'absolute', top:-46, left:'50%', transform:'translateX(-50%)', zIndex:60, fontSize:12, borderRadius:999, border:'1px solid #3a3a3a', background:'#2a2a2a', padding:'4px 12px', color:'#c8c8c8', cursor:'pointer', boxShadow:'0 8px 20px rgba(0,0,0,0.45)' }}
+              >Jump to latest</button>
+            )}
+            <InputBar ref={inputRef} value={input} onChange={handleInputChange} onKeyDown={handleKeyDown} onSend={handleSend} isSending={isSending} />
+            {error && <p style={{ color:'#f87171', fontSize:13, marginTop:6, textAlign:'center' }}>{error}</p>}
+          </div>
+        </div>
+
+        {/*
+          BOTTOM NAV — fixed bottom:0.
+          Hidden via display:none (set directly via navRef) when keyboard opens,
+          not via React state, so no re-render happens.
+        */}
+        <nav
+          ref={navRef}
+          style={{ position:'fixed', bottom:0, left:0, right:0, height:NAV_H, zIndex:10, borderTop:'1px solid #2a2a2a', background:'#171717', padding:'8px 12px' }}
+        >
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
+            {[{l:'Assistant',a:goToBot,active:true},{l:'Analysis',a:goToAnalytics},{l:'Profile',a:goToProfile}].map(({l,a,active})=>(
+              <button key={l} onClick={a} style={{ height:44, borderRadius:8, border:`1px solid ${active?'#3a3a3a':'#333'}`, background:active?'#242424':'transparent', color:active?'#fff':'#d9d9d9', fontSize:14, cursor:'pointer' }}>{l}</button>
+            ))}
+          </div>
+        </nav>
+
+        {/* Swipe handle */}
+        {!keyboardOpen && (
+          <button
+            onTouchStart={e=>e.touches[0]&&setTouchStartX(e.touches[0].clientX)}
+            onTouchEnd={e=>{ if(e.changedTouches[0]&&e.changedTouches[0].clientX-touchStartX>50) setMobileHistoryOpen(true); }}
+            onClick={()=>setMobileHistoryOpen(p=>!p)}
+            style={{ position:'fixed', left:mobileHistoryOpen?280:0, top:'50%', transform:'translateY(-50%)', zIndex:50, height:80, width:24, background:'rgba(42,42,42,0.4)', backdropFilter:'blur(4px)', border:'none', borderRight:'1px solid rgba(58,58,58,0.5)', borderRadius:'0 8px 8px 0', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'left 0.3s' }}
+            aria-label={mobileHistoryOpen?'Close chats':'Open chats'}
           >
-            <div
-              className="w-full max-w-md rounded-xl border border-[#3a3a3a] bg-[#1c1c1c] p-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-base font-semibold mb-3">Rename chat</h3>
-              <input
-                value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') confirmRenameChat();
-                  if (e.key === 'Escape') cancelRenameChat();
-                }}
-                className="w-full rounded-lg bg-[#111] border border-[#2f2f2f] px-3 py-2 text-sm text-[#d6d6d6] placeholder:text-[#a0a0a0] outline-none"
-                placeholder="Enter chat name"
-                autoFocus
-              />
-              <div className="mt-4 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={cancelRenameChat}
-                  className="rounded-md border border-[#343434] px-3 py-1.5 text-sm hover:bg-[#222]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmRenameChat}
-                  className="rounded-md bg-[#3b3b3b] px-3 py-1.5 text-sm text-white hover:opacity-90"
-                >
-                  Save
-                </button>
-              </div>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#d9d9d9" strokeWidth="2" style={{ width:16, height:16, transform:mobileHistoryOpen?'rotate(180deg)':'none', transition:'transform 0.3s' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
+            </svg>
+          </button>
+        )}
+
+        {/* History drawer */}
+        <div
+          style={{ position:'fixed', inset:0, zIndex:40, background:mobileHistoryOpen?'rgba(0,0,0,0.6)':'rgba(0,0,0,0)', pointerEvents:mobileHistoryOpen?'auto':'none', transition:'background 0.3s' }}
+          onClick={closeMobileHistory}
+        >
+          <div style={{ height:'100%', width:280, maxWidth:'85vw', background:'#171717', borderRight:'1px solid #2a2a2a', display:'flex', flexDirection:'column', transform:mobileHistoryOpen?'translateX(0)':'translateX(-100%)', transition:'transform 0.3s' }} onClick={e=>e.stopPropagation()}>
+            <div style={{ height:56, padding:'0 16px', borderBottom:'1px solid #2a2a2a', display:'flex', alignItems:'center' }}><span style={{ fontWeight:600, fontSize:15 }}>Evolve</span></div>
+            <div style={{ padding:12, borderBottom:'1px solid #2a2a2a' }}><button onClick={createNewChat} style={{ width:'100%', borderRadius:8, border:'1px solid #3b3b3b', background:'#1f1f1f', padding:'8px 12px', fontSize:14, color:'#ececec', textAlign:'left', cursor:'pointer' }}>+ New chat</button></div>
+            <div style={{ padding:12, borderBottom:'1px solid #2a2a2a' }}><input value={chatSearch} onChange={e=>setChatSearch(e.target.value)} style={{ width:'100%', borderRadius:8, border:'1px solid #2f2f2f', background:'#111', padding:'8px 12px', fontSize:14, color:'#d6d6d6', outline:'none', boxSizing:'border-box' }} placeholder="Search chats" /></div>
+            <div style={{ padding:'12px 12px 4px', fontSize:11, textTransform:'uppercase', letterSpacing:'0.1em', color:'#9f9f9f' }}>Your chats</div>
+            <ChatList {...chatListProps} mobile onSelect={id=>handleChatSelect(id,true)} />
+          </div>
+        </div>
+      </div>
+
+      {/* Rename modal */}
+      {renameChatId && (
+        <div style={{ position:'fixed', inset:0, zIndex:50, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }} onClick={cancelRename}>
+          <div style={{ width:'100%', maxWidth:448, borderRadius:12, border:'1px solid #3a3a3a', background:'#1c1c1c', padding:16 }} onClick={e=>e.stopPropagation()}>
+            <h3 style={{ fontWeight:600, fontSize:15, marginBottom:12, color:'#ececec' }}>Rename chat</h3>
+            <input value={renameValue} onChange={e=>setRenameValue(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')confirmRename();if(e.key==='Escape')cancelRename();}} style={{ width:'100%', borderRadius:8, border:'1px solid #2f2f2f', background:'#111', padding:'8px 12px', fontSize:14, color:'#d6d6d6', outline:'none', boxSizing:'border-box' }} placeholder="Enter chat name" autoFocus />
+            <div style={{ marginTop:16, display:'flex', justifyContent:'flex-end', gap:8 }}>
+              <button type="button" onClick={cancelRename}  style={{ border:'1px solid #343434', borderRadius:6, padding:'6px 12px', fontSize:14, background:'none', color:'#ececec', cursor:'pointer' }}>Cancel</button>
+              <button type="button" onClick={confirmRename} style={{ border:'none', borderRadius:6, padding:'6px 12px', fontSize:14, background:'#3b3b3b', color:'#fff', cursor:'pointer' }}>Save</button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
-
-export default BotChat;

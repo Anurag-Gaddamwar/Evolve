@@ -20,6 +20,7 @@ const Navbar = () => {
 
   const { theme, toggleTheme } = useTheme();
 
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   return (
     <nav className="theme-surface theme-text px-4 py-2 border-b theme-border theme-shadow z-20">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -35,7 +36,7 @@ const Navbar = () => {
           </a>
         </div>
 
-        {/* center: search */}
+        {/* center: search (hidden on xs) */}
         <div className="flex-1 mx-4 hidden sm:block">
           <form action="/search" method="GET">
             <input
@@ -47,8 +48,8 @@ const Navbar = () => {
           </form>
         </div>
 
-        {/* right: links/logout */}
-        <div className="flex items-center space-x-4">
+        {/* right: links/logout (hidden on small screens) */}
+        <div className="hidden md:flex items-center space-x-4">
           <a href="/analytics" className="theme-link">Analyze</a>
           <a href="/bot" className="theme-link">Imaginate</a>
           <a href="/profile" className="theme-link">Profile</a>
@@ -60,7 +61,33 @@ const Navbar = () => {
           </button>
           <button onClick={handleLogout} className="theme-link">Logout</button>
         </div>
+
+        {/* mobile hamburger */}
+        <button
+          onClick={() => setMobileMenuOpen((o) => !o)}
+          className="md:hidden p-2 focus:outline-none"
+          aria-label="Toggle menu"
+        >
+          <span className="block w-6 h-0.5 bg-current mb-1"></span>
+          <span className="block w-6 h-0.5 bg-current mb-1"></span>
+          <span className="block w-6 h-0.5 bg-current"></span>
+        </button>
       </div>
+
+      {/* mobile menu overlay */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-[#171717] border-t border-[#2a2a2a]">
+          <div className="flex flex-col px-4 py-2 space-y-2">
+            <a href="/analytics" className="theme-link block">Analyze</a>
+            <a href="/bot" className="theme-link block">Imaginate</a>
+            <a href="/profile" className="theme-link block">Profile</a>
+            <button onClick={toggleTheme} className="px-3 py-1 rounded-full border theme-border theme-surface theme-text text-sm w-full text-left">
+              {theme === 'dark' ? 'Light' : 'Dark'}
+            </button>
+            <button onClick={handleLogout} className="theme-link block text-left">Logout</button>
+          </div>
+        </div>
+      )}
     </nav>
   );
 };

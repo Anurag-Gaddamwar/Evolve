@@ -193,7 +193,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <AppSidebarShell title="Profile">
-        <div className="max-w-[1320px] mx-auto w-full text-[#ececec] space-y-4">
+        <div className="max-w-full sm:max-w-[1320px] mx-auto w-full text-[#ececec] space-y-4">
           <div className="rounded-2xl border border-[#2a2a2a] bg-[#171717] p-6 animate-pulse">
             <div className="flex items-center gap-4">
               <div className="w-[clamp(74px,9vw,128px)] h-[clamp(74px,9vw,128px)] rounded-full bg-[#2f2f2f]" />
@@ -211,7 +211,7 @@ export default function ProfilePage() {
 
   return (
     <AppSidebarShell title="Profile">
-      <div className="max-w-[1320px] mx-auto w-full text-[#ececec] space-y-4 md:space-y-6 pb-8">
+      <div className="max-w-full sm:max-w-[1320px] mx-auto w-full text-[#ececec] space-y-4 md:space-y-6 pb-8">
 
         <section className="rounded-2xl border border-[#2a2a2a] bg-[#171717] p-4 sm:p-6 md:p-7">
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">

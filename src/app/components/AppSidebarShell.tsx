@@ -20,7 +20,15 @@ const navItems = [
   },
 ];
 
-export default function AppSidebarShell({ title = 'Evolve', children, showSidebar = true, showLogout = true }) {
+interface AppSidebarShellProps {
+  title?: string;
+  children: React.ReactNode;
+  showSidebar?: boolean;
+  showLogout?: boolean;
+  headerLeft?: React.ReactNode;
+}
+
+export default function AppSidebarShell({ title = 'Evolve', children, showSidebar = true, showLogout = true, headerLeft = null }: AppSidebarShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [userInitial, setUserInitial] = useState('U');
@@ -96,8 +104,7 @@ export default function AppSidebarShell({ title = 'Evolve', children, showSideba
 
   return (
     <div
-      className="min-h-screen w-full overflow-y-auto overflow-x-hidden md:h-screen md:overflow-hidden bg-[#212121] text-[#ececec]"
-      style={{ minHeight: '100dvh' }}
+      className="h-full w-full overflow-x-hidden md:overflow-hidden bg-[#212121] text-[#ececec]"
     >
       <div className="min-h-full md:h-full w-full flex">
         {effectiveShowSidebar && (
@@ -142,11 +149,13 @@ export default function AppSidebarShell({ title = 'Evolve', children, showSideba
 
         <section className={`flex-1 min-w-0 min-h-0 flex flex-col bg-[#212121] ${effectiveShowSidebar ? '' : 'w-full'}`}>
           <header
-            className="fixed top-0 inset-x-0 z-30 h-14 px-4 md:px-6 border-b border-[#2a2a2a] bg-[#212121] flex items-center justify-between md:static md:z-auto"
+            className="fixed top-0 inset-x-0 z-30 h-12 px-3 md:px-5 border-b border-[#2a2a2a] bg-[#171717] flex items-center justify-between md:static md:z-auto"
             style={isMobile ? { transform: `translateY(${mobileViewportTop}px)` } : undefined}
           >
-            <div className="flex items-center gap-2 font-semibold text-[26px] md:text-[30px] leading-none">
-              <span className="text-[27px] md:text-[31px]">{title}</span>
+            {/* optional left content (e.g. chat toggle) */}
+            {headerLeft ? <div className="mr-2">{headerLeft}</div> : null}
+            <div className="flex items-center gap-1 font-semibold text-[18px] md:text-[20px] leading-none">
+              <span className="text-[19px] md:text-[21px]">{title}</span>
             </div>
             {showLogout && (
               <button

@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation"; 
 import axios from "axios";
 import { toast } from "react-hot-toast";
-import PasswordToggle from "../components/PasswordToggle";
 
 export default function SignupPage() {
     const router = useRouter(); 
@@ -50,8 +49,8 @@ export default function SignupPage() {
     };
 
         return (
-            <div className="min-h-screen theme-text flex items-center justify-center">
-            <div className= "border border-[#2a2a2a] shadow-lg rounded-2xl sm:p-30 lg:px-40 md:p-20 theme-shadow bg-[#1a1a1a]">
+            <div className="h-full theme-text flex items-center justify-center">
+            <div className="border border-[#2a2a2a] shadow-lg rounded-2xl p-6 sm:p-10 md:p-20 lg:px-40 theme-shadow bg-[#1a1a1a] mx-4 sm:mx-auto">
           <div className="flex flex-col md:flex-row w-full max-w-6xl mx-auto">
             {/* Left half with welcoming message and quote */}
                         <div className="md:w-1/2 rounded-2xl theme-surface p-8 flex flex-col justify-center">
@@ -109,7 +108,6 @@ export default function SignupPage() {
                                         placeholder='Enter the password'
                                         autoComplete='current-password'
                                     />
-                                    <PasswordToggle show={showPassword} onToggle={() => setShowPassword((prev) => !prev)} />
                                 </div>
                                 {/* Channel ID input */}
                                 <div>

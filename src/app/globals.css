@@ -27,6 +27,15 @@
   --color-overlay: rgba(0, 0, 0, 0.6);
 }
 
+html, body {
+  height: 100%;
+}
+
+:root {
+  /* fallback, updated via JS so we can avoid 100vh resize jumps on mobile */
+  --vh: 1vh;
+}
+
 body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   color: var(--color-text);
