@@ -1,6 +1,6 @@
 # Evolve
 
-`Evolve` is a full‑stack **Next.js 13** application with a Node/Express backend that provides user
+`Evolve` is a full‑stack **Next.js 16.1.6** application with a Node/Express backend that provides user
 authentication, video browsing, AI chat, analytics, and a bot interface. It serves as both a
 starter template and an opinionated implementation of common features for modern web apps.
 
