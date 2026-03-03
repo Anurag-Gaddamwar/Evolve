@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -27,21 +27,24 @@ export default function VerifyEmailPage() {
       const res = await axios.post('/api/users/verifyemail', { token });
       const msg = res?.data?.message || 'Email verified';
       toast.success(msg);
-      // try auto-login if credentials stored
       const storedEmail = sessionStorage.getItem('postSignupEmail');
       const storedPwd = sessionStorage.getItem('postSignupPassword');
       if (storedEmail && storedPwd) {
         try {
-          await axios.post('/api/users/login', { email: storedEmail, password: storedPwd });
+          await axios.post(
+            '/api/users/login',
+            { email: storedEmail, password: storedPwd },
+            { withCredentials: true }
+          );
           sessionStorage.removeItem('postSignupEmail');
           sessionStorage.removeItem('postSignupPassword');
-          window.location.replace('/');
-          return;
         } catch (loginErr) {
-          // fall through to manual login
+          console.warn('Auto-login failed after verify', loginErr);
+          toast.error('Auto-login failed, please sign in');
         }
       }
-      setTimeout(() => router.push('/login'), 1500);
+      // always send user to home; if not logged in, homepage will redirect to login via middleware
+      window.location.replace('/');
     } catch (err: any) {
       const safe = err?.response?.data?.error || 'Verification failed';
     }

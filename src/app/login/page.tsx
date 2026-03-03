@@ -36,6 +36,9 @@ export default function LoginPage() {
       setError(msg);
       toast.error(msg);
       if (msg === "Email not verified") {
+        // preserve entered credentials so we can auto-login after verification
+        sessionStorage.setItem('postSignupEmail', user.email);
+        sessionStorage.setItem('postSignupPassword', user.password);
         router.push(`/verifyemail?email=${encodeURIComponent(user.email)}`);
       }
     } finally {

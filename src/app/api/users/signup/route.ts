@@ -47,7 +47,21 @@ export async function POST(request: NextRequest){
             savedUser
         })
         
-    } catch (error) {
-        return NextResponse.json({error: (error as any).message}, {status: 500})
+    } catch (error: any) {
+        // handle duplicate key (unique constraint) errors gracefully
+        if (error.code === 11000) {
+            // determine which field caused the duplicate
+            const field = Object.keys(error.keyValue || {})[0] || 'field';
+            const value = error.keyValue[field];
+            return NextResponse.json({
+                error: `The ${field} "${value}" is already in use. Please choose another.`
+            }, { status: 400 });
+        }
+        // validation errors from mongoose
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors || {}).map((e: any) => e.message);
+            return NextResponse.json({ error: messages.join(', ') }, { status: 400 });
+        }
+        return NextResponse.json({ error: error.message || 'Signup failed' }, { status: 500 });
     }
 }

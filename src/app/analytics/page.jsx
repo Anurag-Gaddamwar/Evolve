@@ -132,6 +132,36 @@ const MetricCard = ({ title, value, icon, subtitle, compact = false }) => {
   );
 };
 
+// simple ring chart showing percentage value
+const RingChart = ({ pct, size = 60, stroke = 6, color = '#4a4a4a' }) => {
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - pct / 100);
+  return (
+    <svg width={size} height={size} className="rotate-[-90deg]">
+      <circle
+        cx={size/2}
+        cy={size/2}
+        r={radius}
+        stroke="#2f2f2f"
+        strokeWidth={stroke}
+        fill="none"
+      />
+      <circle
+        cx={size/2}
+        cy={size/2}
+        r={radius}
+        stroke={color}
+        strokeWidth={stroke}
+        fill="none"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+};
+
 const HorizontalBar = ({ label, value }) => (
   <div>
     <div className="flex items-center justify-between text-sm text-[#cfcfcf] mb-2">
@@ -313,6 +343,14 @@ const WireframeReport = ({ report, isSample = false }) => {
     negative: sanitize(sentiment.negative),
   };
 
+  // numeric values for rings
+  const ringEngagement = parseFloat(report.engagementRate?.toString().replace('%','')||'0');
+  const ringSentiment = sentimentData.positive;
+  const ringSubsView = viewCount ? ((Number(report.subscriberCount||0)/viewCount)*100) : 0;
+
+  const hasSentiment = typeof sentiment.positive === 'number' && sentiment.positive > 0;
+  const hasSubsView = viewCount > 0 && Number(report.subscriberCount || 0) > 0;
+
   // questions provided on the report object
   const questions = Array.isArray(report.questions) ? report.questions : [];
 
@@ -357,35 +395,69 @@ const WireframeReport = ({ report, isSample = false }) => {
         <FontAwesomeIcon icon={faStar} className="text-[#cfcfcf]" />
         Top Comments
       </h4>
-      <ul className="text-xs text-[#d7d7d7] space-y-2 max-h-32 overflow-y-auto">
+      <ul className="list-disc list-outside text-sm text-[#d7d7d7] space-y-1 pl-5 max-h-32 overflow-y-auto">
         {topComments.map((c, idx) => (
-          <li key={idx} className="break-words">“{c}”</li>
+          <li key={idx} className="break-words">{c}</li>
         ))}
       </ul>
     </div>
   ) : null;
 
-return (
+  const [openOps, setOpenOps] = useState(true);
+  const [openRec, setOpenRec] = useState(true);
+  const [openConcl, setOpenConcl] = useState(true);
+
+  return (
     <div className={`space-y-6 ${isSample ? 'border border-dashed border-[#3a3a3a] p-4' : 'bg-[#1a1a1a] p-4 md:p-6 rounded-xl'}`}>
-    {/* Channel Header */}
-    <div className="flex flex-row items-center gap-4">
+    {/* Channel Header + quick stats rings */}
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-row items-center gap-4 flex-wrap">
       <img
         src={report.channelProfile || '/logo.png'}
         alt="Channel"
         className="w-14 h-14 rounded-full border border-[#3a3a3a] object-cover"
       />
-      <div className="min-w-0">
+      <div className="flex-1 min-w-0">
         <h3 className="text-base sm:text-lg font-semibold text-[#ececec] truncate">
           {report.channelName || 'Unknown Channel'}
         </h3>
         <p className="text-xs sm:text-sm text-[#a8a8a8]">
           {formatNumber(report.subscriberCount)} subscribers
         </p>
-        <p className="text-xs sm:text-sm text-[#c8c8c8] mt-1 truncate">
+        <p className="text-xs sm:text-sm text-[#c8c8c8] mt-1 w-full whitespace-normal break-words">
           {report.videoTitle || 'Video title unavailable'}
         </p>
       </div>
     </div>
+
+    {/* quick rings */}
+    <div className="flex gap-6 mt-4">
+      <div className="flex flex-col items-center text-xs text-[#cfcfcf]">
+        <RingChart pct={ringEngagement} color="#4a90e2" />
+        <span className="mt-1">Engagement</span>
+      </div>
+      {hasSentiment ? (
+        <div className="flex flex-col items-center text-xs text-[#cfcfcf]">
+          <RingChart pct={ringSentiment} color="#24a587" />
+          <span className="mt-1">Sentiment</span>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center text-xs text-[#cfcfcf]">
+          <span className="mt-1">No sentiment data</span>
+        </div>
+      )}
+      {hasSubsView ? (
+        <div className="flex flex-col items-center text-xs text-[#cfcfcf]">
+          <RingChart pct={ringSubsView} color="#f5a623" />
+          <span className="mt-1">Subs/View</span>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center text-xs text-[#cfcfcf]">
+          <span className="mt-1">No subscribers or views</span>
+        </div>
+      )}
+    </div>
+  </div>  {/* end flex-col wrapper */}
 
     {/* Metrics */}
     <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -516,12 +588,23 @@ return (
         </div>
       )}
       {report.opportunities && report.opportunities.length > 0 && (
-        <div className="rounded-xl border border-dashed border-[#3a3a3a] bg-[#1a1a1a] p-4">
-          <h4 className="text-xs sm:text-sm uppercase tracking-wide text-[#9f9f9f] mb-2 flex items-center gap-2">
-            <FontAwesomeIcon icon={faBullseye} className="text-[#cfcfcf]" />
-            Opportunities
-          </h4>
-          {renderTextList(report.opportunities)}
+        <div className="rounded-xl border border-dashed border-[#3a3a3a] bg-[#1a1a1a]">
+          <button
+            className="w-full text-left px-4 py-2 flex items-center justify-between"
+            onClick={() => setOpenOps(o => !o)}
+          >
+            <span className="text-xs sm:text-sm uppercase tracking-wide text-[#9f9f9f] flex items-center gap-2">
+              <FontAwesomeIcon icon={faBullseye} className="text-[#cfcfcf]" />
+              Opportunities
+            </span>
+            <svg
+              className={`w-4 h-4 transform transition-transform ${openOps ? 'rotate-180' : ''}`}
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {openOps && <div className="pt-2 pb-4 px-4">{renderTextList(report.opportunities)}</div>}
         </div>
       )}
     </div>
@@ -531,41 +614,65 @@ return (
     {/* content recommendations */}
     <div className="grid grid-cols-1 gap-4">
       {report.suggestions && report.suggestions.length > 0 && (
-        <div className="rounded-xl border border-dashed border-[#3a3a3a] bg-[#1a1a1a] p-4">
-          <h4 className="text-xs sm:text-sm uppercase tracking-wide text-[#9f9f9f] mb-2 flex items-center gap-2">
-            <FontAwesomeIcon icon={faList} className="text-[#cfcfcf]" />
-            Content Recommendations
-          </h4>
-          <div className="space-y-4">
-            {report.suggestions.map((s, i) => (
-              <div key={i} className="space-y-1">
-                <div className="flex items-start gap-2">
-                  <span className="text-[#d7d7d7] mt-0.5">•</span>
-                  <div className="flex-1">
-                    <p
-                      className="font-medium text-xs sm:text-sm text-[#d7d7d7]"
-                      dangerouslySetInnerHTML={{
-                        __html: mdToHtml(s.recommendation || s),
-                      }}
-                    />
-                    {s.reason && <p className="text-xs sm:text-sm text-[#a0a0a0] italic mt-1">Why: {s.reason}</p>}
-                    {s.implementation && <p className="text-xs sm:text-sm text-[#b0b0b0] mt-1">How: {s.implementation}</p>}
+        <div className="rounded-xl border border-dashed border-[#3a3a3a] bg-[#1a1a1a]">
+          <button
+            className="w-full text-left px-4 py-2 flex items-center justify-between"
+            onClick={() => setOpenRec(r => !r)}
+          >
+            <span className="text-xs sm:text-sm uppercase tracking-wide text-[#9f9f9f] flex items-center gap-2">
+              <FontAwesomeIcon icon={faList} className="text-[#cfcfcf]" />
+              Content Recommendations
+            </span>
+            <svg
+              className={`w-4 h-4 transform transition-transform ${openRec ? 'rotate-180' : ''}`}
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {openRec && (
+            <div className="pt-2 pb-4 px-4 space-y-2">
+              {report.suggestions.map((s, i) => (
+                <div key={i} className="">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#d7d7d7]">•</span>
+                    <div className="flex-1">
+                      <p
+                        className="font-medium text-xs sm:text-sm text-[#d7d7d7] leading-tight"
+                        dangerouslySetInnerHTML={{
+                          __html: mdToHtml(s.recommendation || s),
+                        }}
+                      />
+                      {s.reason && <p className="text-xs sm:text-sm text-[#a0a0a0] italic mt-1 leading-5">Why: {s.reason}</p>}
+                      {s.implementation && <p className="text-xs sm:text-sm text-[#b0b0b0] mt-1 leading-5">How: {s.implementation}</p>}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
     <hr className="border-[#2f2f2f] my-6" />
     {/* conclusion */}
-    <div className="rounded-xl border border-dashed border-[#3a3a3a] bg-[#1a1a1a] p-5">
-      <h4 className="text-xs sm:text-sm uppercase tracking-wide text-[#9f9f9f] mb-3 flex items-center gap-2">
-        <FontAwesomeIcon icon={faCheck} className="text-[#cfcfcf]" />
-        Conclusion
-      </h4>
-      {renderTextList(report.conclusion)}
+    <div className="rounded-xl border border-dashed border-[#3a3a3a] bg-[#1a1a1a]">
+      <button
+        className="w-full text-left px-4 py-2 flex items-center justify-between"
+        onClick={() => setOpenConcl(c => !c)}
+      >
+        <span className="text-xs sm:text-sm uppercase tracking-wide text-[#9f9f9f] flex items-center gap-2">
+          <FontAwesomeIcon icon={faCheck} className="text-[#cfcfcf]" />
+          Conclusion
+        </span>
+        <svg
+          className={`w-4 h-4 transform transition-transform ${openConcl ? 'rotate-180' : ''}`}
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {openConcl && <div className="pt-2 pb-4 px-4">{renderTextList(report.conclusion)}</div>}
     </div>
 
 
