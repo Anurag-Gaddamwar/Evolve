@@ -1,76 +1,136 @@
-# Evolve Project
+# Evolve
 
-Welcome to the Evolve project, a Next.js application designed to help you get started with your development journey.
+`Evolve` is a full‑stack **Next.js 13** application with a Node/Express backend that provides user
+authentication, video browsing, AI chat, analytics, and a bot interface. It serves as both a
+starter template and an opinionated implementation of common features for modern web apps.
 
-## Getting Started
+---
+## 🧱 Project Structure
+
+```text
+.
+├── public/             # static assets
+├── src/
+│   ├── app/            # Next.js app router (pages using React Server Components)
+│   │   ├── api/        # serverless API routes (users, chats, auth flows, etc.)
+│   │   ├── components/ # shared React components
+│   │   ├── profile/    # profile pages and styles
+│   │   ├── login/      # login/signup flows
+│   │   └── …
+│   ├── backend/        # Express routes and services (ai, bot, videos)
+│   ├── config/         # configuration helpers
+│   ├── dbConfig/        # MongoDB connection logic
+│   ├── helpers/         # utility functions (token handling, mailer)
+│   ├── models/          # Mongoose models (userModel.js)
+│   └── routes/          # additional Express routes
+├── server.js           # custom Express server used by Next.js
+├── package.json        # dependencies & scripts
+├── tsconfig.json
+├── next.config.mjs
+└── README.md           # (this file)
+```
+
+> The repository mixes JavaScript and TypeScript; you can convert files to TS as needed.
+
+---
+## 🚀 Getting Started
 
 ### Prerequisites
-Make sure Node.js is installed on your machine.
+- Node.js 18+ (LTS recommended)
+- npm, yarn, pnpm or bun
+- MongoDB instance (local or cloud)
 
 ### Installation
-1. Clone this repository to your local machine.
-2. Navigate to the project root directory in your terminal.
-3. Run npm install to install the necessary Node modules.
-   ```
-   npm install
-   ```
 
-### Configuration
-- Update the MongoDB URL in Evolve/src/dbConfig/dbConfig.ts with your own database URL.
-- Create a .env file in the root directory and add your API keys:
-```
-YOUTUBE_API_KEY=your_youtube_data_api_key
-GEMINI_API_KEY=your_gemini_api_key
-TOKEN_SECRET=token_secret_for_your_database
-DOMAIN=http://localhost:3000
-```
-- Paste your YouTube Data API key into Evolve/src/app/analytics/page.jsx.
-
-
-### Development
-
-Start the development server:
-
-bash
-```
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-
+```bash
+git clone <repo-url> evolve
+cd evolve
+npm install          # or yarn, pnpm, bun
 ```
 
-Additionally, run the following files using:
+### Environment Variables
+Create a `.env` file at the project root with the following keys:
 
+```env
+MONGODB_URI=<your_mongo_connection_string>
+YOUTUBE_API_KEY=<your_youtube_data_api_key>
+GEMINI_API_KEY=<your_gemini_api_key>  # used by AI/chat endpoints
+TOKEN_SECRET=<jwt_signing_secret>
+DOMAIN=http://localhost:3000          # adjust for production URL
 ```
-node server.js
-node profile.js
-node bot.js
+
+Update `src/dbConfig/dbConfig.ts` if you need custom connection logic.
+
+> You can also set `NODE_ENV=development` during local work; production ENV variables
+> are handled by your hosting provider (Vercel, etc.).
+
+### Configuration Reminders
+- Analytics page fetches YouTube key from `src/app/analytics/page.jsx`.
+- Email and token helpers are in `src/helpers/mailer.ts` and `getDataFromToken.ts`.
+
+---
+## 🛠 Development
+
+```bash
+npm run dev            # starts Next.js dev server (http://localhost:3000)
+node server.js         # runs custom Express backend concurrently (needed for some routes)
 ```
 
-Open http://localhost:3000 in your browser to see the application.
+> In most cases `npm run dev` will start the backend automatically via `server.js`.
 
-### Usage
+You can also run individual scripts for testing or debugging:
 
-Begin modifying app/page.js to customize your page. The changes will automatically update the page.
+```bash
+node backend/routes/bot.js    # standalone bot server
+node backend/routes/profile.js
+to run specific modules as needed
+```
 
-This project utilizes next/font for optimizing and loading Inter, a custom Google Font.
+### Useful Commands
+- `npm run build` – compile production bundle
+- `npm start` – start in production mode (requires build)
+- `npm test` – run any tests (not yet configured)
+- `npm run lint` / `npm run format` – lint/format code
 
-## Work Flow
-![Workflow](https://github.com/Anurag-Gaddamwar/Evolve/assets/123613177/ea3ba3d1-82fe-46d1-8e3c-d1fe4ffbb96a)
+---
+## 🔧 Features & Usage
 
-### Learn More
+- **Authentication** – signup/login/logout, password reset, email verification
+- **Profile pages** – browse/edit user profiles, dynamic routes
+- **Video service** – search and display videos via YouTube API
+- **AI Chat** – powered by Gemini or another model using `chatService.js`
+- **Analytics** – view YouTube analytics for a channel/user
+- **Bot interface** – simple chat bot under `src/app/bot`
 
-Explore the resources below to dive deeper into Next.js:
+To start customizing, edit files inside `src/app` (React components) or
+`src/backend` (Express services).
 
-Next.js Documentation: Learn about Next.js features and API.
-Learn Next.js: Interactive Next.js tutorial.
-Next.js GitHub Repository: Contribute and provide feedback.
+---
+## 📚 Learning Resources
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Next.js App Router Guide](https://nextjs.org/docs/app/building-your-application/routing)
+- [Tailwind CSS](https://tailwindcss.com/docs)
+- [Mongoose](https://mongoosejs.com/docs/guide.html)
 
-### Deployment
-Consider using the Vercel Platform for seamless deployment. Refer to the Next.js deployment documentation for detailed instructions.
+---
+## 📦 Deployment
+This project works seamlessly with Vercel; simply connect the repo and add
+your environment variables. You can also deploy using Docker or any Node.js
+hosting provider. See the [Next.js deployment docs](https://nextjs.org/docs/deployment)
+for general guidance.
 
-We welcome your feedback and contributions to this project! Happy coding!
+---
+## 🤝 Contributing
+Contributions and feedback are welcome! Please open issues or pull requests
+against the `main` branch. Follow conventional commits and include tests when
+adding functionality.
+
+---
+## 💡 Notes
+- The codebase uses Tailwind CSS for styling; run `npx tailwindcss init` if you
+modify the config.
+- Some API routes live under `src/app/api/users/...` and are used by the
+frontend; any backend change may require updating both the Next.js route
+and the Express service.
+
+Happy coding! 🎉
