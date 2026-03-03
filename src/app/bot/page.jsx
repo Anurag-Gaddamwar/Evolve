@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 
 const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -56,25 +57,40 @@ const ChatActions = ({ chat, openMenuId, onRename, onPin, onDelete }) => {
   );
 };
 
-const ChatList = ({ filteredChats, activeChatId, openMenuId, mobile, onSelect, onMenuToggle, onRename, onPin, onDelete }) => (
-  <div className="flex-1 min-h-0 overflow-y-auto app-scrollbar px-2 py-2" data-chat-actions-root>
-    {filteredChats.map(chat => (
-      <div
-        key={(mobile?'m-':'')+chat.id}
-        className={`group relative flex items-center justify-between rounded-lg px-2 py-2 mb-1 cursor-pointer border ${chat.id===activeChatId?'bg-[#242424] border-[#3a3a3a]':'bg-transparent border-transparent hover:bg-[#1f1f1f]'}`}
-        onClick={()=>onSelect(chat.id)}
-      >
-        <span className="text-sm truncate pr-2">
-          {chat.pinned && <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-3.5 h-3.5 inline-block mr-1 align-[-2px]"><path strokeLinecap="round" strokeLinejoin="round" d="M9 4h6l-1 5 3 3H7l3-3-1-5z"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 12v8"/></svg>}
-          {chat.title||'New chat'}
-        </span>
-        <button type="button" onClick={e=>{e.stopPropagation();onMenuToggle(chat.id);}} className="text-lg leading-none text-[#9f9f9f] hover:text-white px-1">⋯</button>
-        <ChatActions chat={chat} openMenuId={openMenuId} onRename={onRename} onPin={onPin} onDelete={onDelete} />
-      </div>
-    ))}
-    {filteredChats.length===0 && <div className="px-2 py-3 text-xs text-[#8f8f8f]">No chats found.</div>}
-  </div>
-);
+const ChatList = ({ filteredChats, activeChatId, openMenuId, mobile, onSelect, onMenuToggle, onRename, onPin, onDelete }) => {
+  // group by month
+  let lastMonth = '';
+  const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' });
+  return (
+    <div className="flex-1 min-h-0 overflow-y-auto app-scrollbar px-2 py-2" data-chat-actions-root>
+      {filteredChats.map(chat => {
+        const date = new Date(chat.updatedAt || chat.createdAt || Date.now());
+        const month = fmt.format(date);
+        const header = month !== lastMonth ? (
+          <div key={month} className="text-xs text-[#9f9f9f] mt-2 mb-1">{month}</div>
+        ) : null;
+        lastMonth = month;
+        return (
+          <React.Fragment key={(mobile?'m-':'')+chat.id}>
+            {header}
+            <div
+              className={`group relative flex items-center justify-between rounded-lg px-2 py-2 mb-1 cursor-pointer border ${chat.id===activeChatId?'bg-[#242424] border-[#3a3a3a]':'bg-transparent border-transparent hover:bg-[#1f1f1f]'}`}
+              onClick={()=>onSelect(chat.id)}
+            >
+              <span className="text-sm truncate pr-2">
+                {chat.pinned && <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-3.5 h-3.5 inline-block mr-1 align-[-2px]"><path strokeLinecap="round" strokeLinejoin="round" d="M9 4h6l-1 5 3 3H7l3-3-1-5z"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 12v8"/></svg>}
+                {chat.title||'New chat'}
+              </span>
+              <button type="button" onClick={e=>{e.stopPropagation();onMenuToggle(chat.id);}} className="text-lg leading-none text-[#9f9f9f] hover:text-white px-1">⋯</button>
+              <ChatActions chat={chat} openMenuId={openMenuId} onRename={onRename} onPin={onPin} onDelete={onDelete} />
+            </div>
+          </React.Fragment>
+        );
+      })}
+      {filteredChats.length===0 && <div className="px-2 py-3 text-xs text-[#8f8f8f]">No chats found.</div>}
+    </div>
+  );
+};
 
 const InputBar = React.forwardRef(({ value, onChange, onKeyDown, onSend, isSending }, ref) => (
   <div className="rounded-[26px] border border-[#3a3a3a] bg-[#2a2a2a] px-3 py-2 flex items-end gap-2 shadow-lg">
@@ -116,6 +132,7 @@ export default function BotChat() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
   const [isMobile, setIsMobile]                 = useState(false);
+  const [isMobileDevice, setIsMobileDevice]     = useState(false);
   const [openMenuId, setOpenMenuId]             = useState('');
   const [renameChatId, setRenameChatId]         = useState('');
   const [renameValue, setRenameValue]           = useState('');
@@ -149,10 +166,16 @@ export default function BotChat() {
   useEffect(() => { setIsMounted(true); }, []);
 
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
+    const checkWidth = () => setIsMobile(window.innerWidth < 768);
+    checkWidth();
+    window.addEventListener('resize', checkWidth);
+    return () => window.removeEventListener('resize', checkWidth);
+  }, []);
+
+  useEffect(() => {
+    // simple UA check for phones/tablets
+    const ua = navigator.userAgent || ''; 
+    setIsMobileDevice(/Mobi|Android|iPhone|iPad|iPod/i.test(ua));
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -261,7 +284,10 @@ export default function BotChat() {
         const d = await r.json();
         const src = ((d?.data?.username||'').trim().split(/\s+/)[0]) || (d?.data?.email||'').trim();
         setUserInitial(src ? src[0].toUpperCase() : 'U');
-      } catch {}
+      } catch (e) {
+        console.error('user initial load failed', e);
+        toast.error('Unable to load user info');
+      }
     })();
   }, []);
 
@@ -272,11 +298,11 @@ export default function BotChat() {
         const r = await fetch('/api/users/chats');
         if (r.status===401) { router.push('/login'); return; }
         if (r.ok) { const d=await r.json(); const s=Array.isArray(d?.chats)?d.chats:[]; if(s.length) hc=s; }
-      } catch {}
+      } catch (e) { console.error('chat load error', e); toast.error('Failed to load chats'); }
       if (!hc) hc = [createInitialChat()];
       setChats(hc);
 
-      // if we just arrived from login, create a fresh chat and ignore stored id
+      // if we just arrived from login, decide whether to reuse an empty chat
       const justLoggedIn = sessionStorage.getItem('evolve_new_chat_on_login');
       if (justLoggedIn) {
         try { sessionStorage.removeItem('evolve_new_chat_on_login'); } catch {};
@@ -286,7 +312,16 @@ export default function BotChat() {
       const storedId = sessionStorage.getItem(ACTIVE_CHAT_KEY);
       if (!existing || justLoggedIn) {
         sessionStorage.setItem(SESSION_KEY,'true');
-        // on first visit or after login, start fresh
+        // if login triggered and we already have an empty chat, use it instead
+        if (justLoggedIn) {
+          const empty = hc.find(c=>!c.messages?.length);
+          if (empty) {
+            setActiveChatId(empty.id);
+            sessionStorage.setItem(ACTIVE_CHAT_KEY, empty.id);
+            return;
+          }
+        }
+        // otherwise create a new chat
         const nc = createInitialChat();
         setChats(prev => [nc, ...hc]);
         setActiveChatId(nc.id);
@@ -302,7 +337,9 @@ export default function BotChat() {
   useEffect(() => { if (hasLoadedChats&&activeChatId) sessionStorage.setItem(ACTIVE_CHAT_KEY,activeChatId); }, [activeChatId,hasLoadedChats]);
   useEffect(() => {
     if (!hasLoadedChats||!activeChatId) return;
-    fetch('/api/users/chats',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({chats})}).catch(()=>{});
+    fetch('/api/users/chats',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({chats})})
+      .then(r=>{ if(!r.ok) throw new Error('save failed'); })
+      .catch(e=>{ console.error('autosave error',e); toast.error('Failed to save chats'); });
   }, [chats,hasLoadedChats,activeChatId]);
 
   useEffect(() => { stickToBottomRef.current=true; setShowJumpToLatest(false); setOpenMenuId(''); }, [activeChatId]);
@@ -359,28 +396,69 @@ export default function BotChat() {
   const isChatEmpty = c => !c?.messages?.length;
 
   const createNewChat = useCallback(() => {
-    const active=chats.find(c=>c.id===activeChatId);
-    if(active&&isChatEmpty(active)) { setError(''); return; }
-    const empty=chats.find(c=>c.id!==activeChatId&&isChatEmpty(c));
-    if(empty) { setActiveChatId(empty.id); setError(''); return; }
-    const nc=createInitialChat();
-    setChats(p=>[nc,...p]); setActiveChatId(nc.id); closeMobileHistory();
-    stickToBottomRef.current=true; setShowJumpToLatest(false); setInput(''); setError('');
+    try {
+      const active=chats.find(c=>c.id===activeChatId);
+      if(active&&isChatEmpty(active)) { setError(''); toast('Switched to existing empty chat'); return; }
+      const empty=chats.find(c=>c.id!==activeChatId&&isChatEmpty(c));
+      if(empty) { setActiveChatId(empty.id); setError(''); toast('Reusing empty chat'); return; }
+      const nc=createInitialChat();
+      setChats(p=>[nc,...p]); setActiveChatId(nc.id); closeMobileHistory();
+      stickToBottomRef.current=true; setShowJumpToLatest(false); setInput(''); setError('');
+      toast.success('New chat created');
+    } catch (e) {
+      console.error('createNewChat error', e);
+      toast.error('Failed to create chat');
+    }
   }, [chats,activeChatId,closeMobileHistory]);
 
   const deleteChat = useCallback(id => {
+    console.log('chat deleted', id);
+    toast.success('Chat deleted');
     setOpenMenuId('');
-    setChats(prev => {
-      const f=prev.filter(c=>c.id!==id);
-      if(f.length) { if(activeChatId===id) setActiveChatId(f[0].id); return f; }
-      const fb=createInitialChat(); setActiveChatId(fb.id); return [fb];
-    });
+    try {
+      setChats(prev => {
+        const f=prev.filter(c=>c.id!==id);
+        if(f.length) { if(activeChatId===id) setActiveChatId(f[0].id); return f; }
+        const fb=createInitialChat(); setActiveChatId(fb.id); return [fb];
+      });
+    } catch (e) {
+      console.error('deleteChat failure', e);
+    toast.error('Failed to delete chat');
+      console.error('deleteChat error', e);
+    }
   }, [activeChatId]);
 
   const startRename   = useCallback(id => { const t=chats.find(c=>c.id===id); if(!t) return; setRenameChatId(id); setRenameValue(t.title||'New chat'); setOpenMenuId(''); }, [chats]);
-  const confirmRename = useCallback(() => { const v=renameValue.trim(); if(!renameChatId||!v){setRenameChatId('');setRenameValue('');return;} setChats(p=>p.map(c=>c.id===renameChatId?{...c,title:v.slice(0,48),updatedAt:Date.now()}:c)); setRenameChatId(''); setRenameValue(''); }, [renameChatId,renameValue]);
+  const confirmRename = useCallback(() => {
+    const v = renameValue.trim();
+    if (!renameChatId || !v) {
+      setRenameChatId(''); setRenameValue('');
+      return;
+    }
+    // prevent duplicate titles (case-insensitive)
+    const other = chats.find(c => c.id !== renameChatId && (c.title||'').toLowerCase() === v.toLowerCase());
+    if (other) {
+      console.log('rename prevented: duplicate title', v);
+      // display via toast rather than chat error area
+      toast.error('A chat with that name already exists.');
+      return;
+    }
+    setChats(p => p.map(c => c.id === renameChatId ? { ...c, title: v.slice(0,48) } : c));
+    setRenameChatId(''); setRenameValue('');
+  }, [renameChatId,renameValue,chats]);
   const cancelRename  = useCallback(() => { setRenameChatId(''); setRenameValue(''); }, []);
-  const togglePin     = useCallback(id => { setChats(p=>p.map(c=>c.id===id?{...c,pinned:!c.pinned}:c)); setOpenMenuId(''); }, []);
+  const togglePin     = useCallback(id => {
+    console.log('togglePin success', id);
+    toast.success('Chat pinned state updated');
+    try {
+      setChats(p=>p.map(c=>c.id===id?{...c,pinned:!c.pinned}:c));
+      setOpenMenuId('');
+    } catch (e) {
+      console.error('togglePin failure', e);
+      toast.error('Failed to update pin');
+      console.error('togglePin error', e);
+    }
+  }, []);
   const handleMenuToggle = useCallback(id => { setOpenMenuId(p=>p===id?'':id); }, []);
   const handleChatSelect = useCallback((id,closeMobile=false) => { setActiveChatId(id); if(closeMobile) closeMobileHistory(); }, [closeMobileHistory]);
 
@@ -395,16 +473,16 @@ export default function BotChat() {
   const handleSend = useCallback(async () => {
     const msg=input.trim();
     if(!msg||!activeChatId||isSending) return;
-    closeMobileHistory(); setError(''); setInput(''); setIsSending(true);
-    stickToBottomRef.current=true;
-    requestAnimationFrame(()=>{ const el=msgContainerRef.current; if(el) el.scrollTop=el.scrollHeight; });
-
-    const userMsg={id:createId(),role:'user',text:msg,createdAt:Date.now()};
-    const snap=chats.find(c=>c.id===activeChatId);
-    const history=(snap?.messages||[]).filter(m=>(m.role==='user'||m.role==='assistant')&&typeof m.text==='string').map(m=>({from:m.role==='assistant'?'assistant':'user',text:m.text})).slice(-20);
-    const tid=activeChatId;
-    updateMsgs(tid,p=>[...p,userMsg]);
     try {
+      closeMobileHistory(); setError(''); setInput(''); setIsSending(true);
+      stickToBottomRef.current=true;
+      requestAnimationFrame(()=>{ const el=msgContainerRef.current; if(el) el.scrollTop=el.scrollHeight; });
+
+      const userMsg={id:createId(),role:'user',text:msg,createdAt:Date.now()};
+      const snap=chats.find(c=>c.id===activeChatId);
+      const history=(snap?.messages||[]).filter(m=>(m.role==='user'||m.role==='assistant')&&typeof m.text==='string').map(m=>({from:m.role==='assistant'?'assistant':'user',text:m.text})).slice(-20);
+      const tid=activeChatId;
+      updateMsgs(tid,p=>[...p,userMsg]);
       const api=process.env.NEXT_PUBLIC_BACKEND_URL||'http://localhost:3001';
       const r=await fetch(`${api}/api/bot-response`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userRequest:msg,chatSessionId,chatId:tid,chatHistory:history})});
       if(!r.ok) throw new Error('bad');
@@ -413,15 +491,20 @@ export default function BotChat() {
       updateMsgs(tid,p=>[...p,{id:createId(),role:'assistant',text:txt,createdAt:Date.now()}]);
       setTimeout(()=>{ stickToBottomRef.current=true; const el=msgContainerRef.current; if(el) el.scrollTop=el.scrollHeight; },80);
     } catch(e) {
-      setError('Error generating response. Please try again.');
+      toast.error('Unable to fetch bot response');
+      setError('Error generating response. Please try again.'); toast.error('Error generating response. Please try again.');
       updateMsgs(tid,p=>[...p,{id:createId(),role:'assistant',text:'Sorry, I could not respond right now.',createdAt:Date.now()}]);
-      console.error(e);
+      console.error('handleSend error', e);
     } finally { setIsSending(false); }
   }, [input,activeChatId,isSending,chats,chatSessionId,closeMobileHistory]);
 
   const handleKeyDown = useCallback(e => {
-    if(e.key==='Enter'&&!isMobile&&!e.shiftKey) { e.preventDefault(); handleSend(); }
-  }, [isMobile,handleSend]);
+    // only send on desktop/large screen AND not running on a mobile device
+    if (e.key === 'Enter' && !isMobile && !isMobileDevice && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  }, [isMobile,isMobileDevice,handleSend]);
 
   const handleInputChange = useCallback(e => {
     setInput(e.target.value);
@@ -468,7 +551,7 @@ export default function BotChat() {
         <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-[#212121]">
           <header className="shrink-0 h-12 px-4 border-b border-[#2a2a2a] bg-[#171717] flex items-center justify-between">
             <span className="font-semibold text-[20px]">Evolve</span>
-            <button onClick={async()=>{try{sessionStorage.removeItem(SESSION_KEY);await fetch('/api/users/logout',{method:'GET'});router.push('/login');}catch(e){console.error(e);}}} className="border border-[#3a3a3a] bg-[#242424] rounded-lg px-3 py-1 text-sm hover:bg-[#2f2f2f]">Logout</button>
+            <button onClick={async()=>{try{sessionStorage.removeItem(SESSION_KEY);const r=await fetch('/api/users/logout',{method:'GET'}); if(!r.ok) throw new Error('logout failed'); toast.success('Logged out'); router.push('/login');}catch(e){console.error(e);toast.error('Logout failed');}}} className="border border-[#3a3a3a] bg-[#242424] rounded-lg px-3 py-1 text-sm hover:bg-[#2f2f2f]">Logout</button>
           </header>
           <div ref={setDesktopMsgRef} onScroll={e=>handleScroll(e.currentTarget)} className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
             <div className="max-w-[900px] mx-auto px-6 py-8 flex flex-col gap-5">
@@ -496,7 +579,6 @@ export default function BotChat() {
                 >Jump to latest</button>
               )}
               <InputBar ref={inputRef} value={input} onChange={handleInputChange} onKeyDown={handleKeyDown} onSend={handleSend} isSending={isSending} />
-              {error && <p className="text-red-400 text-sm mt-2 text-center">{error}</p>}
             </div>
           </div>
         </div>
@@ -511,7 +593,7 @@ export default function BotChat() {
         */}
         <header style={{ position:'fixed', top:0, left:0, right:0, height:HEADER_H, zIndex:30, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 14px', borderBottom:'1px solid #2a2a2a', background:'#171717' }}>
           <span style={{ fontWeight:600, fontSize:18 }}>Evolve</span>
-          <button onClick={async()=>{try{sessionStorage.removeItem(SESSION_KEY);await fetch('/api/users/logout',{method:'GET'});router.push('/login');}catch(e){console.error(e);}}} style={{ border:'1px solid #3a3a3a', background:'#242424', borderRadius:8, padding:'4px 12px', fontSize:14, color:'#ececec', cursor:'pointer' }}>Logout</button>
+          <button onClick={async()=>{try{sessionStorage.removeItem(SESSION_KEY);const r=await fetch('/api/users/logout',{method:'GET'}); if(!r.ok) throw new Error('logout failed'); toast.success('Logged out'); router.push('/login');}catch(e){console.error(e);toast.error('Logout failed');}}} style={{ border:'1px solid #3a3a3a', background:'#242424', borderRadius:8, padding:'4px 12px', fontSize:14, color:'#ececec', cursor:'pointer' }}>Logout</button>
         </header>
 
         {/*
@@ -558,7 +640,6 @@ export default function BotChat() {
               >Jump to latest</button>
             )}
             <InputBar ref={inputRef} value={input} onChange={handleInputChange} onKeyDown={handleKeyDown} onSend={handleSend} isSending={isSending} />
-            {error && <p style={{ color:'#f87171', fontSize:13, marginTop:6, textAlign:'center' }}>{error}</p>}
           </div>
         </div>
 

@@ -30,9 +30,9 @@ export default function ForgotPasswordPage() {
                 toast.error(msg);
             }
         } catch (err: any) {
-            const msg = err?.response?.data?.error || err.message;
-            setError(msg);
-            toast.error(msg);
+            const safe = err?.response?.data?.error || 'Request failed. Please try again.';
+            setError(safe);
+            toast.error(safe);
         } finally {
             setLoading(false);
         }
@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
         <div className="h-full theme-text flex items-center justify-center">
             <div className="border border-[#2a2a2a] rounded-2xl p-6 sm:p-10 md:p-20 lg:px-40 theme-shadow bg-[#1a1a1a] mx-4 sm:mx-auto">
                 <div className="flex flex-col md:flex-row w-full max-w-6xl mx-auto">
-                    <div className="md:w-1/2 rounded-2xl theme-surface p-8">
+                    <div className="hidden md:flex md:w-1/2 rounded-2xl theme-surface p-8">
                         <div className="flex items-center justify-center mb-8">
                             <img src="/logo.png" alt="Logo" className="w-12 h-12 mr-2" />
                             <h1 className="text-2xl font-semibold">EVOLVE</h1>
@@ -50,7 +50,14 @@ export default function ForgotPasswordPage() {
                         <h2 className="text-3xl font-bold mb-6 text-center md:text-left text-white">Forgot Password?</h2>
                         <p className="text-lg text-center md:text-left">Enter your email and we'll send a one-time code (OTP) to reset your password.</p>
                     </div>
-                    <div className="md:w-1/2 rounded-2xl theme-surface p-8">
+                    <div className="w-full md:w-1/2 rounded-2xl theme-surface p-8">
+                        {/* mobile header above form */}
+                        <div className="flex flex-col items-center mb-6 md:hidden">
+                          <img src="/logo.png" alt="Logo" className="w-10 h-10 mb-2" />
+                          <h1 className="text-2xl font-semibold">EVOLVE</h1>
+                          <h2 className="text-2xl font-bold mt-2">Forgot Password?</h2>
+                          <p className="text-lg text-center mt-2">Enter your email and we'll send a one-time code (OTP) to reset your password.</p>
+                        </div>
                         <h2 className="text-3xl font-bold mb-6 text-center text-white">Reset</h2>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
@@ -65,7 +72,6 @@ export default function ForgotPasswordPage() {
                                     placeholder="Enter the email"
                                 />
                             </div>
-                            {error && <p className="text-red-500 text-xs italic">{error}</p>}
                             <button
                                 type="submit"
                                 className="w-full py-2 px-4 theme-accent-bg cursor-pointer font-semibold rounded-lg shadow-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-opacity-75"

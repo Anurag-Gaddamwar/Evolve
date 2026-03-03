@@ -250,6 +250,8 @@ Rules:
 - Never fabricate facts
 - Avoid harmful/illegal instructions
 - Keep tone concise and direct
+- Do NOT respond with general advice unrelated to YouTube/content creation; instead politely decline when off-topic.
+- Do not ask more than one clarifying question; if input is ambiguous, make a reasonable assumption or give a brief answer.
 `;
 
   const modeInstruction = creatorIntent
@@ -268,8 +270,8 @@ Next Step
 `
     : `
 Mode: general_chat.
-Reply in 1-4 concise lines.
-Do not force content strategy.
+Only answer if question can be framed in a YouTube/content-creation context; otherwise decline politely.
+Reply in 1-4 concise lines and avoid unnecessary back-and-forth.
 `;
 
   const recencyInstruction = `

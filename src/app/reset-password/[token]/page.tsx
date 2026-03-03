@@ -18,7 +18,6 @@ export default function ResetPasswordPage() {
     const [showConfirm, setShowConfirm] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -34,13 +33,22 @@ export default function ResetPasswordPage() {
             const res = await axios.post('/api/users/resetpassword', payload);
             const msg = res?.data?.message || 'Password has been reset';
             toast.success(msg);
-            setSuccessMsg(msg);
+            const returnedEmail = res?.data?.email;
+            if (returnedEmail) {
+                try {
+                    await axios.post('/api/users/login', { email: returnedEmail, password });
+                    window.location.replace('/');
+                    return;
+                } catch {
+                    // ignore
+                }
+            }
             setTimeout(() => router.push('/login'), 2000);
         } catch (err: any) {
-            const msg = err?.response?.data?.error || err.message;
-            setError(msg);
-            toast.error(msg);
-            if (msg && msg.toLowerCase().includes('invalid')) {
+            const safe = err?.response?.data?.error || 'Unable to reset password. Please try again.';
+            setError(safe);
+            toast.error(safe);
+            if (safe && safe.toLowerCase().includes('invalid')) {
                 router.push('/forgot-password');
             }
         } finally {
@@ -52,7 +60,7 @@ export default function ResetPasswordPage() {
         <div className="h-full theme-text flex items-center justify-center">
             <div className="border border-[#2a2a2a] rounded-2xl p-6 sm:p-10 md:p-20 lg:px-40 theme-shadow bg-[#1a1a1a] mx-4 sm:mx-auto">
                 <div className="flex flex-col md:flex-row w-full max-w-6xl mx-auto">
-                    <div className="md:w-1/2 rounded-2xl theme-surface p-8">
+                    <div className="hidden md:flex md:w-1/2 rounded-2xl theme-surface p-8">
                         <div className="flex items-center justify-center mb-8">
                             <img src="/logo.png" alt="Logo" className="w-12 h-12 mr-2" />
                             <h1 className="text-2xl font-semibold">EVOLVE</h1>
@@ -60,10 +68,16 @@ export default function ResetPasswordPage() {
                         <h2 className="text-3xl font-bold mb-6 text-center md:text-left">Reset Password</h2>
                         <p className="text-lg text-center md:text-left">Enter a new password for your account.</p>
                     </div>
-                    <div className="md:w-1/2 rounded-2xl theme-surface p-8">
-                        <h2 className="text-3xl font-bold mb-6 text-center">New Password</h2>
+                    <div className="w-full md:w-1/2 rounded-2xl theme-surface p-8">
+                        {/* mobile header above form */}
+                        <div className="flex flex-col items-center mb-6 md:hidden">
+                          <img src="/logo.png" alt="Logo" className="w-10 h-10 mb-2" />
+                          <h1 className="text-2xl font-semibold">EVOLVE</h1>
+                          <h2 className="text-2xl font-bold mt-2">Reset Password</h2>
+                          <p className="text-lg text-center mt-2">Enter a new password for your account.</p>
+                        </div>
+                        <h2 className="text-3xl font-bold mb-6 text-center">Choose password</h2>
                         <form onSubmit={handleSubmit} className="space-y-4">
-                            {successMsg && <p className="text-green-400 text-sm text-center">{successMsg}</p>}
                             {!token && (
                             <div>
                                 <label htmlFor="otp" className="block text-sm font-medium theme-muted">OTP code</label>
@@ -145,7 +159,6 @@ export default function ResetPasswordPage() {
                                     </button>
                                 </div>
                             </div>
-                            {error && <p className="text-red-500 text-xs italic">{error}</p>}
                             <button
                                 type="submit"
                                 className="w-full py-2 px-4 theme-accent-bg cursor-pointer text-white font-semibold rounded-lg shadow-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-opacity-75"

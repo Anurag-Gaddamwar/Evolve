@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import axios from 'axios';
+import { toast } from 'react-hot-toast';
 import AppSidebarShell from '../components/AppSidebarShell';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -587,7 +588,8 @@ const CommentSummarizer = () => {
     try {
       const videoId = extractVideoId(videoUrl);
       if (!videoId) {
-        setError('Invalid YouTube URL');
+        setError('Invalid YouTube URL'); toast.error('Invalid YouTube URL');
+        toast.error('Invalid YouTube URL');
         return;
       }
 
@@ -596,7 +598,8 @@ const CommentSummarizer = () => {
       );
 
       if (!videoDetailsResponse.data?.items?.length) {
-        setError('Could not fetch video details from YouTube.');
+        setError('Could not fetch video details from YouTube.'); toast.error('Could not fetch video details from YouTube.');
+        toast.error('Could not fetch video details');
         return;
       }
 
@@ -609,8 +612,10 @@ const CommentSummarizer = () => {
       // check cache key before doing backend analysis
       const cacheKey = makeCacheKey(videoId, videoStatistics);
       if (analyticsCache.has(cacheKey)) {
-        setReport(analyticsCache.get(cacheKey));
+        const cached = analyticsCache.get(cacheKey);
+        setReport(cached);
         setIsLoading(false);
+        toast.success('Report loaded from cache');
         return;
       }
       // YouTube sometimes hides the dislike count; the API then omits the field completely.
@@ -664,7 +669,8 @@ const CommentSummarizer = () => {
       // after we derive final report object below we will cache it
 
       if (!backendData || typeof backendData !== 'object') {
-        setError('Error fetching or processing comments. Please try again later.');
+        setError('Error fetching or processing comments. Please try again later.'); toast.error('Error fetching or processing comments. Please try again later.');
+        toast.error('Error processing data');
         return;
       }
 
@@ -673,7 +679,8 @@ const CommentSummarizer = () => {
       const rawText = backendData.raw || backendData.text || backendData.geminiResponse || '';
       if (!aiData || typeof aiData !== 'object') {
         console.error('Expected parsed AI data object but got', aiData, 'raw:', rawText);
-        setError('AI returned invalid data.');
+        setError('AI returned invalid data.'); toast.error('AI returned invalid data.');
+        toast.error('AI returned invalid data');
         return;
       }
 
@@ -763,8 +770,10 @@ const CommentSummarizer = () => {
       // cache result for this stats key
       analyticsCache.set(cacheKey, finalReport);
       setReport(finalReport);
+      toast.success('Report generated');
     } catch (requestError) {
-      setError('Error fetching comments or generating report. Please try again later.');
+      setError('Error fetching comments or generating report. Please try again later.'); toast.error('Error fetching comments or generating report. Please try again later.');
+      toast.error('Failed to fetch/generate report');
       console.error('Error:', requestError);
     } finally {
       setIsLoading(false);
@@ -807,7 +816,6 @@ const CommentSummarizer = () => {
               </div>
 
               <p className="text-xs text-[#8f8f8f]">Example: https://youtube.com/watch?v=dQw4w9WgXcQ</p>
-              {error ? <p className="text-sm text-[#ff9b9b]">{error}</p> : null}
             </form>
           </div>
         ) : (

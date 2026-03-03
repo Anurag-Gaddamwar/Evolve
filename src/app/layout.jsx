@@ -1,6 +1,7 @@
 // use system font stack for Apple/Google design
 import "./globals.css";
 import { ThemeProvider } from "./components/ThemeProvider";
+import { Toaster } from 'react-hot-toast';
 
 // no external font; rely on system-ui
 
@@ -16,7 +17,10 @@ export default function RootLayout({ children }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body className="theme-transition font-sans overflow-x-hidden h-full">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          {children}
+          <Toaster position="top-center" reverseOrder={false} />
+        </ThemeProvider>
       </body>
     </html>
   );

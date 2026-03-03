@@ -11,12 +11,13 @@ export function middleware(request: NextRequest) {
     }
 
     // Redirect to the login page for any non-public path if the user is not logged in
-    if (!isLoggedIn && path !== '/login' && path !== '/signup') {
+    // (we must treat verifyemail as public so users can reach it after registering)
+    if (!isLoggedIn && path !== '/login' && path !== '/signup' && path !== '/verifyemail') {
         return NextResponse.redirect(new URL('/login', request.nextUrl));
     }
 
-    // Allow access to login and signup pages regardless of login status
-    if (path === '/login' || path === '/signup') {
+    // Allow access to login, signup, and verifyemail pages regardless of login status
+    if (path === '/login' || path === '/signup' || path === '/verifyemail') {
         return null; // Continue to the requested page
     }
 

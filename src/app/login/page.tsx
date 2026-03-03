@@ -2,6 +2,7 @@
 // login-page.tsx
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import axios from "axios";
 import { toast } from "react-hot-toast";
 
@@ -11,6 +12,7 @@ interface User {
 }
 
 export default function LoginPage() {
+  const router = useRouter();
   const [user, setUser] = useState<User>({
     email: "",
     password: "",
@@ -26,17 +28,18 @@ export default function LoginPage() {
 
     try {
       const response = await axios.post("/api/users/login", user);
-      // console.log("Login success", response.data);
       toast.success("Login success");
-      // mark that we just logged in so bot page can open a fresh chat
       try { sessionStorage.setItem('evolve_new_chat_on_login','true'); } catch {};
       window.location.replace("/");
     } catch (error: any) {
-      // console.log("Login failed", error.message);
-      setError("Login failed. Please check your credentials."); // Set the error message
-      toast.error(error.message);
+      const msg = error?.response?.data?.error || "Login failed. Please check your credentials.";
+      setError(msg);
+      toast.error(msg);
+      if (msg === "Email not verified") {
+        router.push(`/verifyemail?email=${encodeURIComponent(user.email)}`);
+      }
     } finally {
-      setLoading(false); // Reset loading state after login attempt
+      setLoading(false);
     }
   };
 
@@ -67,10 +70,9 @@ export default function LoginPage() {
               <h1 className="text-2xl font-semibold">EVOLVE</h1>
               <h2 className="text-2xl font-bold mt-2">Welcome back!</h2>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-center">Login</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-center">Sign in to your account</h2>
             <form className="space-y-4">
-              {/* Email input */}
-              <div>
+                            <div>
                 <label htmlFor="email" className="block text-sm font-medium theme-muted">Email</label>
                 <input
                   type="email"
@@ -79,12 +81,11 @@ export default function LoginPage() {
                   onChange={(e) => setUser({ ...user, email: e.target.value })}
                   className="theme-input mt-1 block w-full p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
                   required
-                  placeholder="Enter the email"
+                  placeholder="you@example.com"
                   autoComplete='current-email'
                 />
               </div>
-              {/* Password input */}
-              <div>
+                            <div>
                 <label htmlFor="password" className="block text-sm font-medium theme-muted">Password</label>
                 <div className="relative mt-1">
                   <input
@@ -94,7 +95,7 @@ export default function LoginPage() {
                     onChange={(e) => setUser({ ...user, password: e.target.value })}
                     className="theme-input block w-full pr-12 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
                     required
-                    placeholder="Enter the password"
+                    placeholder="••••••••"
                     autoComplete='current-password'
                   />
                   <button
@@ -119,7 +120,6 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
-              {error && <p className="text-red-500 text-xs italic">{error}</p>} 
               <button
                 onClick={onLogin}
                 className="w-full py-2 px-4 theme-accent-bg cursor-pointer font-semibold rounded-lg shadow-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-opacity-75"

@@ -23,14 +23,17 @@ export default function SignupPage() {
             setLoading(true);
             const response = await axios.post("/api/users/signup", user); 
             // console.log("Signup success", response.data);
-            toast.success('Account created successfully');
-            router.push("/");
+            toast.success('Account created successfully. Please check your email for a verification code.');
+            sessionStorage.setItem('postSignupEmail', user.email);
+            sessionStorage.setItem('postSignupPassword', user.password);
+            router.push(`/verifyemail?email=${encodeURIComponent(user.email)}`);
         } catch (err: any) {
             // axios error may not have response or data
-            const message = err?.response?.data?.error || err.message || 'Signup failed';
-            // console.log("Signup failed", message);
-            setError(message);
-            toast.error(message);
+            const serverMsg = err?.response?.data?.error;
+            const safe = serverMsg || 'Signup failed. Please try again.';
+            // console.log("Signup failed", safe);
+            setError(safe);
+            toast.error(safe);
         } finally {
             setLoading(false);
         }
@@ -53,18 +56,23 @@ export default function SignupPage() {
             <div className="border border-[#2a2a2a] shadow-lg rounded-2xl p-6 sm:p-10 md:p-20 lg:px-40 theme-shadow bg-[#1a1a1a] mx-4 sm:mx-auto">
           <div className="flex flex-col md:flex-row w-full max-w-6xl mx-auto">
             {/* Left half with welcoming message and quote */}
-                        <div className="md:w-1/2 rounded-2xl theme-surface p-8 flex flex-col justify-center">
+                        <div className="hidden md:flex md:w-1/2 rounded-2xl theme-surface p-8 flex flex-col justify-center">
               {/* Logo and website name */}
               <div className="flex items-center justify-center mb-8">
                 <img src="/logo.png" alt="Logo" className="w-12 h-12 mr-2" /> 
                 <h1 className="text-2xl font-semibold">EVOLVE</h1>
               </div>
-              <h2 className="text-3xl font-bold mb-6 text-center md:text-left">Create an Account</h2>
-              <p className="text-lg text-center md:text-left">Create your creator account and start analyzing videos.</p>
+              <p className="text-lg text-center md:text-left">Join Evolve to manage your AI workflows and analytics.</p>
             </div>
                         {/* Right half with signup form */}
-                        <div className="md:w-1/2 rounded-2xl theme-surface p-8">
-                            <h2 className="text-3xl font-bold mb-6 text-center">Sign Up</h2>
+                        <div className="w-full md:w-1/2 rounded-2xl theme-surface p-8">
+                            {/* mobile header above form */}
+                            <div className="flex flex-col items-center mb-6 md:hidden">
+                              <img src="/logo.png" alt="Logo" className="w-10 h-10 mb-2" />
+                              <h1 className="text-2xl font-semibold">EVOLVE</h1>
+                              <p className="text-lg text-center mt-2">Join Evolve to manage your AI workflows and analytics.</p>
+                            </div>
+                            <h2 className="text-3xl font-bold mb-6 text-center">Create your account</h2>
                             <form onSubmit={handleSubmit} className="space-y-4">
 
                                 {/* Email input */}
@@ -77,7 +85,7 @@ export default function SignupPage() {
                                         onChange={(e) => setUser({ ...user, username: e.target.value })}
                                         className="theme-input mt-1 block w-full p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
                                         required
-                                        placeholder='Enter the username'
+                                        placeholder='your username'
                                         autoComplete='current-username'
                                     />
                                 </div>
@@ -91,7 +99,7 @@ export default function SignupPage() {
                                         onChange={(e) => setUser({ ...user, email: e.target.value })}
                                         className="theme-input mt-1 block w-full p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
                                         required
-                                        placeholder='Enter the email'
+                                        placeholder='you@example.com'
                                         autoComplete='current-email'
                                     />
                                 </div>
@@ -106,7 +114,7 @@ export default function SignupPage() {
                                           onChange={(e) => setUser({ ...user, password: e.target.value })}
                                           className="theme-input block w-full pr-12 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
                                           required
-                                          placeholder='Enter the password'
+                                          placeholder='••••••••'
                                           autoComplete='current-password'
                                       />
                                       <button
@@ -131,7 +139,7 @@ export default function SignupPage() {
                                 </div>
                                 {/* Channel ID input */}
                                 <div>
-                                    <label htmlFor="channelId" className="block text-sm font-medium theme-muted">Channel ID</label>
+                                    <label htmlFor="channelId" className="block text-sm font-medium theme-muted">Channel ID (optional)</label>
                                     <input
                                         type="text"
                                         id="channelId"
@@ -139,10 +147,9 @@ export default function SignupPage() {
                                         onChange={(e) => setUser({ ...user, channelId: e.target.value })}
                                         className="theme-input mt-1 block w-full p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
                                         required
-                                        placeholder='Enter the channel ID'
+                                        placeholder='Your YouTube channel ID'
                                     />
                                 </div>
-                                {error && <p className="text-red-500 text-xs italic">{error}</p>}
                                 <button type="submit" className="w-full py-2 px-4 theme-accent-bg font-semibold rounded-lg shadow-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-opacity-75 cursor-pointer" disabled={buttonDisabled} >
                                     {loading ? "..." : "Sign Up"}
                                 </button>

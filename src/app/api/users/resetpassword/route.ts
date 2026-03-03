@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
             // log but don't fail the request
             console.warn('Failed to send password change notification');
         }
-        return NextResponse.json({ message: "Password reset successful", success: true });
+        return NextResponse.json({ message: "Password reset successful", success: true, email: user.email });
     } catch (error) {
         return NextResponse.json({ error: (error as any).message }, { status: 500 });
     }
