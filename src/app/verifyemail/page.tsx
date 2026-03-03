@@ -1,18 +1,24 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
 export default function VerifyEmailPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const urlToken = searchParams.get('token') || '';
-  const initialEmail = searchParams.get('email') || '';
 
-  const [token, setToken] = useState(urlToken);
-  const [email, setEmail] = useState(initialEmail);
+  // read query parameters on client after mount to avoid CSR bailout issues
+  const [token, setToken] = useState('');
+  const [email, setEmail] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const t = params.get('token');
+    const e = params.get('email');
+    if (t) setToken(t);
+    if (e) setEmail(e);
+  }, []);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +83,7 @@ export default function VerifyEmailPage() {
         <div className="max-w-md mx-auto">
           <h2 className="text-3xl font-bold mb-6 text-center text-white">Verify Your Email</h2>
           <p className="text-sm text-[#a0a0a0] mb-4">
-            {urlToken ? (
+            {token ? (
               <>A verification token was detected in the link.&nbsp;</>
             ) : (
               <>Please enter the code or token you received by email.</>
