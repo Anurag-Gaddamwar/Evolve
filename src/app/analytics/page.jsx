@@ -144,6 +144,18 @@ const HorizontalBar = ({ label, value }) => (
   </div>
 );
 
+// simple markdown-to-HTML helper (bold **, italic *)
+const mdToHtml = (str) => {
+  if (!str) return '';
+  let html = str
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  html = html
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>');
+  return html;
+};
+
 // helper to render multi‑sentence text as list
 const renderTextList = (input) => {
   if (!input) return null;
@@ -152,7 +164,7 @@ const renderTextList = (input) => {
     return (
       <ul className="list-disc list-outside text-xs sm:text-sm text-[#d7d7d7] space-y-2 pl-5">
         {input.map((p, i) => (
-          <li key={i}>{p}</li>
+          <li key={i} dangerouslySetInnerHTML={{ __html: mdToHtml(p) }} />
         ))}
       </ul>
     );
@@ -162,11 +174,17 @@ const renderTextList = (input) => {
     .split(/\.|\n/)
     .map((s) => s.trim())
     .filter(Boolean);
-  if (parts.length <= 1) return <p className="text-xs sm:text-sm text-[#d7d7d7] leading-6">{input}</p>;
+  if (parts.length <= 1)
+    return (
+      <p
+        className="text-xs sm:text-sm text-[#d7d7d7] leading-6"
+        dangerouslySetInnerHTML={{ __html: mdToHtml(input) }}
+      />
+    );
   return (
     <ul className="list-disc list-outside text-xs sm:text-sm text-[#d7d7d7] space-y-2 pl-5">
       {parts.map((p, i) => (
-        <li key={i}>{p}</li>
+        <li key={i} dangerouslySetInnerHTML={{ __html: mdToHtml(p) }} />
       ))}
     </ul>
   );
@@ -524,7 +542,12 @@ return (
                 <div className="flex items-start gap-2">
                   <span className="text-[#d7d7d7] mt-0.5">•</span>
                   <div className="flex-1">
-                    <p className="font-medium text-xs sm:text-sm text-[#d7d7d7]">{s.recommendation || s}</p>
+                    <p
+                      className="font-medium text-xs sm:text-sm text-[#d7d7d7]"
+                      dangerouslySetInnerHTML={{
+                        __html: mdToHtml(s.recommendation || s),
+                      }}
+                    />
                     {s.reason && <p className="text-xs sm:text-sm text-[#a0a0a0] italic mt-1">Why: {s.reason}</p>}
                     {s.implementation && <p className="text-xs sm:text-sm text-[#b0b0b0] mt-1">How: {s.implementation}</p>}
                   </div>
