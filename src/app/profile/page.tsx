@@ -309,9 +309,6 @@ export default function ProfilePage() {
               />
             ))}
           </div>
-
-          <div ref={loadMoreRef} className="h-10" />
-
           
         </section>
       </div>
