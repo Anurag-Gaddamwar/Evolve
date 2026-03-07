@@ -139,7 +139,7 @@ export default function SignupPage() {
                                 </div>
                                 {/* Channel ID input */}
                                 <div>
-                                    <label htmlFor="channelId" className="block text-sm font-medium theme-muted">Channel ID (optional)</label>
+                                    <label htmlFor="channelId" className="block text-sm font-medium theme-muted">Channel ID </label>
                                     <input
                                         type="text"
                                         id="channelId"
