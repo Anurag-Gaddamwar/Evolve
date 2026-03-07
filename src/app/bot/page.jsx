@@ -101,7 +101,7 @@ const InputBar = React.forwardRef(({ value, onChange, onKeyDown, onSend, isSendi
       onKeyDown={onKeyDown}
       onTouchMove={e=>e.stopPropagation()}
       rows={1}
-      placeholder="Ask Evolve"
+      placeholder="Ask about content, growth, or YouTube strategy…"
       className="w-full bg-transparent outline-none resize-none text-[#ececec] placeholder:text-[#a4a4a4] leading-6 py-1 min-h-[20px] max-h-[200px] overflow-y-auto app-scrollbar"
       style={{ overscrollBehavior:'contain', WebkitOverflowScrolling:'touch' }}
     />
@@ -141,6 +141,7 @@ export default function BotChat() {
   const [touchStartX, setTouchStartX]           = useState(0);
   // Only used for showing/hiding nav bar — layout is handled via DOM refs
   const [keyboardOpen, setKeyboardOpen]         = useState(false);
+  const [isLoggingOut, setIsLoggingOut]        = useState(false);
 
   const msgContainerRef  = useRef(null);
   const desktopMsgRef    = useRef(null);
@@ -299,36 +300,41 @@ export default function BotChat() {
         if (r.status===401) { router.push('/login'); return; }
         if (r.ok) { const d=await r.json(); const s=Array.isArray(d?.chats)?d.chats:[]; if(s.length) hc=s; }
       } catch (e) { console.error('chat load error', e); toast.error('Failed to load chats'); }
-      if (!hc) hc = [createInitialChat()];
-      setChats(hc);
 
-      // if we just arrived from login, decide whether to reuse an empty chat
+      // Check if we just arrived from login or password reset
       const justLoggedIn = sessionStorage.getItem('evolve_new_chat_on_login');
       if (justLoggedIn) {
         try { sessionStorage.removeItem('evolve_new_chat_on_login'); } catch {};
       }
 
+      // If we just logged in and have existing chats with an empty one, reuse it
+      if (justLoggedIn && hc && hc.length > 0) {
+        const empty = hc.find(c => !c.messages?.length);
+        if (empty) {
+          setChats(hc);
+          setActiveChatId(empty.id);
+          sessionStorage.setItem(ACTIVE_CHAT_KEY, empty.id);
+          sessionStorage.setItem(SESSION_KEY, 'true');
+          setHasLoadedChats(true);
+          return;
+        }
+      }
+
+      if (!hc) hc = [createInitialChat()];
+      setChats(hc);
+
       const existing = sessionStorage.getItem(SESSION_KEY);
       const storedId = sessionStorage.getItem(ACTIVE_CHAT_KEY);
       if (!existing || justLoggedIn) {
         sessionStorage.setItem(SESSION_KEY,'true');
-        // if login triggered and we already have an empty chat, use it instead
-        if (justLoggedIn) {
-          const empty = hc.find(c=>!c.messages?.length);
-          if (empty) {
-            setActiveChatId(empty.id);
-            sessionStorage.setItem(ACTIVE_CHAT_KEY, empty.id);
-            return;
-          }
-        }
-        // otherwise create a new chat
+        // Create new chat
         const nc = createInitialChat();
         setChats(prev => [nc, ...hc]);
         setActiveChatId(nc.id);
         sessionStorage.setItem(ACTIVE_CHAT_KEY,nc.id);
       } else {
-        const exists = storedId && hc.some(c=>c.id===storedId);
-        setActiveChatId(exists ? storedId : hc[0]?.id||'');
+        const exists = storedId && hc.some(c => c.id === storedId);
+        setActiveChatId(exists ? storedId : hc[0]?.id || '');
       }
       setHasLoadedChats(true);
     })();
@@ -398,9 +404,12 @@ export default function BotChat() {
   const createNewChat = useCallback(() => {
     try {
       const active=chats.find(c=>c.id===activeChatId);
+      // Only one empty chat allowed - if current is empty, just switch to it
       if(active&&isChatEmpty(active)) { setError(''); toast('Switched to existing empty chat'); return; }
+      // Find any existing empty chat (not the active one) and switch to it
       const empty=chats.find(c=>c.id!==activeChatId&&isChatEmpty(c));
       if(empty) { setActiveChatId(empty.id); setError(''); toast('Reusing empty chat'); return; }
+      // Only create a new chat if the current one has messages
       const nc=createInitialChat();
       setChats(p=>[nc,...p]); setActiveChatId(nc.id); closeMobileHistory();
       stickToBottomRef.current=true; setShowJumpToLatest(false); setInput(''); setError('');
@@ -460,7 +469,15 @@ export default function BotChat() {
     }
   }, []);
   const handleMenuToggle = useCallback(id => { setOpenMenuId(p=>p===id?'':id); }, []);
-  const handleChatSelect = useCallback((id,closeMobile=false) => { setActiveChatId(id); if(closeMobile) closeMobileHistory(); }, [closeMobileHistory]);
+  const handleChatSelect = useCallback((id,closeMobile=false) => { 
+    // When selecting a different chat, remove the current empty chat if it has no messages
+    const currentChat = chats.find(c => c.id === activeChatId);
+    if (currentChat && isChatEmpty(currentChat) && id !== activeChatId) {
+      setChats(prev => prev.filter(c => c.id !== activeChatId));
+    }
+    setActiveChatId(id); 
+    if(closeMobile) closeMobileHistory(); 
+  }, [chats, activeChatId, closeMobileHistory]);
 
   const updateMsgs = (chatId, updater) => {
     setChats(prev=>prev.map(c=>{
@@ -551,7 +568,7 @@ export default function BotChat() {
         <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-[#212121]">
           <header className="shrink-0 h-12 px-4 border-b border-[#2a2a2a] bg-[#171717] flex items-center justify-between">
             <span className="font-semibold text-[20px]">Evolve</span>
-            <button onClick={async()=>{try{sessionStorage.removeItem(SESSION_KEY);const r=await fetch('/api/users/logout',{method:'GET'}); if(!r.ok) throw new Error('logout failed'); toast.success('Logged out'); router.push('/login');}catch(e){console.error(e);toast.error('Logout failed');}}} className="border border-[#3a3a3a] bg-[#242424] rounded-lg px-3 py-1 text-sm hover:bg-[#2f2f2f]">Logout</button>
+            <button onClick={async()=>{if(isLoggingOut) return; setIsLoggingOut(true); try{sessionStorage.removeItem(SESSION_KEY);const r=await fetch('/api/users/logout',{method:'GET'}); if(!r.ok) throw new Error('logout failed'); toast.success('Logged out'); router.push('/login');}catch(e){console.error(e);toast.error('Logout failed');}finally{setIsLoggingOut(false);}}} disabled={isLoggingOut} className="border border-[#3a3a3a] bg-[#242424] rounded-lg px-3 py-1 text-sm hover:bg-[#2f2f2f] disabled:opacity-50">{isLoggingOut ? '...' : 'Logout'}</button>
           </header>
           <div ref={setDesktopMsgRef} onScroll={e=>handleScroll(e.currentTarget)} className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
             <div className="max-w-[900px] mx-auto px-6 py-8 flex flex-col gap-5">
@@ -593,7 +610,7 @@ export default function BotChat() {
         */}
         <header style={{ position:'fixed', top:0, left:0, right:0, height:HEADER_H, zIndex:30, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 14px', borderBottom:'1px solid #2a2a2a', background:'#171717' }}>
           <span style={{ fontWeight:600, fontSize:18 }}>Evolve</span>
-          <button onClick={async()=>{try{sessionStorage.removeItem(SESSION_KEY);const r=await fetch('/api/users/logout',{method:'GET'}); if(!r.ok) throw new Error('logout failed'); toast.success('Logged out'); router.push('/login');}catch(e){console.error(e);toast.error('Logout failed');}}} style={{ border:'1px solid #3a3a3a', background:'#242424', borderRadius:8, padding:'4px 12px', fontSize:14, color:'#ececec', cursor:'pointer' }}>Logout</button>
+          <button onClick={async()=>{if(isLoggingOut) return; setIsLoggingOut(true); try{sessionStorage.removeItem(SESSION_KEY);const r=await fetch('/api/users/logout',{method:'GET'}); if(!r.ok) throw new Error('logout failed'); toast.success('Logged out'); router.push('/login');}catch(e){console.error(e);toast.error('Logout failed');}finally{setIsLoggingOut(false);}}} disabled={isLoggingOut} style={{ border:'1px solid #3a3a3a', background:'#242424', borderRadius:8, padding:'4px 12px', fontSize:14, color:'#ececec', cursor:isLoggingOut?'not-allowed':'pointer', opacity:isLoggingOut?0.5:1 }}>{isLoggingOut ? '...' : 'Logout'}</button>
         </header>
 
         {/*

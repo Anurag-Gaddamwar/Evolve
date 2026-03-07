@@ -8,10 +8,11 @@ connect();
 
 export async function POST(request: NextRequest) {
     try {
-        const { token, password } = await request.json();
+        const { token, password, email } = await request.json();
         if (!token || !password) {
             return NextResponse.json({ error: "Token and password required" }, { status: 400 });
         }
+        
         // try to find by link token first
         let user = await User.findOne({
             forgotPasswordToken: token,
@@ -24,25 +25,37 @@ export async function POST(request: NextRequest) {
             if (process.env.NODE_ENV !== 'production') {
                 console.log('Attempting OTP match for token:', token, 'at', new Date().toISOString());
             }
-            // fetch all users who still have an unexpired OTP
-            const candidates = await User.find({ otpExpiry: { $gt: Date.now() } });
-            for (const candidate of candidates) {
-                if (candidate.otpToken) {
-                    const match = await bcryptjs.compare(String(token).trim(), candidate.otpToken);
+            
+            // If email provided, check that specific user's OTP
+            if (email) {
+                const userByEmail = await User.findOne({ email });
+                if (userByEmail && userByEmail.otpToken && userByEmail.otpExpiry) {
+                    if (userByEmail.otpExpiry <= Date.now()) {
+                        // OTP is expired for this user
+                        return NextResponse.json({ error: "Your OTP has expired. Please request a new one." }, { status: 400 });
+                    }
+                    // Check if OTP matches
+                    const match = await bcryptjs.compare(String(token).trim(), userByEmail.otpToken);
                     if (match) {
-                        user = candidate;
-                        if (process.env.NODE_ENV !== 'production') {
-                            console.log('OTP matched for user', candidate._id.toString());
+                        user = userByEmail;
+                    }
+                }
+            } else {
+                // Fallback: check all users with unexpired OTP (legacy behavior)
+                const candidates = await User.find({ otpExpiry: { $gt: Date.now() } });
+                for (const candidate of candidates) {
+                    if (candidate.otpToken) {
+                        const match = await bcryptjs.compare(String(token).trim(), candidate.otpToken);
+                        if (match) {
+                            user = candidate;
+                            break;
                         }
-                        break;
                     }
                 }
             }
+            
             if (!user && process.env.NODE_ENV !== 'production') {
-                console.warn('OTP attempt failed; candidates count:', candidates.length);
-                candidates.forEach((c) => {
-                    console.warn('candidate id', c._id.toString(), 'hash', c.otpToken);
-                });
+                console.warn('OTP attempt failed');
             }
         }
 
@@ -51,8 +64,20 @@ export async function POST(request: NextRequest) {
             if (process.env.NODE_ENV !== 'production') {
                 console.warn('Failed reset attempt, provided token:', token);
             }
-            return NextResponse.json({ error: "Invalid or expired token or OTP" }, { status: 400 });
+            // Check if token was numeric OTP format
+            if (/^\d{4,6}$/.test(token)) {
+                // If we have email, we already checked expiry above - this is truly invalid
+                return NextResponse.json({ error: "Invalid OTP. Please check the code and try again." }, { status: 400 });
+            }
+            return NextResponse.json({ error: "Your reset link has expired. Please request a new one." }, { status: 400 });
         }
+
+        // Check if new password is same as current password
+        const isSamePassword = await bcryptjs.compare(password, user.password);
+        if (isSamePassword) {
+            return NextResponse.json({ error: "New password cannot be the same as your current password." }, { status: 400 });
+        }
+
         const salt = await bcryptjs.genSalt(10);
         user.password = await bcryptjs.hash(password, salt);
         user.forgotPasswordToken = undefined;
@@ -69,6 +94,7 @@ export async function POST(request: NextRequest) {
         }
         return NextResponse.json({ message: "Password reset successful", success: true, email: user.email });
     } catch (error) {
-        return NextResponse.json({ error: (error as any).message }, { status: 500 });
+        console.error("Reset password error:", error);
+        return NextResponse.json({ error: "Something went wrong. Please try again later." }, { status: 500 });
     }
 }

@@ -13,22 +13,121 @@ export default function ResetPasswordOTPPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [resendLoading, setResendLoading] = useState(false);
+    const [resendCooldown, setResendCooldown] = useState(0);
     const [error, setError] = useState<string | null>(null);
+    const [userEmail, setUserEmail] = useState<string>('');
+
+    // Get email from localStorage on mount
+    React.useEffect(() => {
+        const storedEmail = localStorage.getItem('resetPasswordEmail');
+        if (storedEmail) {
+            setUserEmail(storedEmail);
+        }
+    }, []);
+
+    // Countdown timer for resend OTP
+    React.useEffect(() => {
+        if (resendCooldown > 0) {
+            const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [resendCooldown]);
+
+    // Handle resend OTP
+    const handleResendOTP = async () => {
+        if (resendCooldown > 0 || resendLoading) return;
+        
+        setResendLoading(true);
+        try {
+            // Use stored email from localStorage
+            const email = userEmail || localStorage.getItem('resetPasswordEmail');
+            
+            if (!email) {
+                toast.error("Email not found. Please start the password reset process again.");
+                setResendLoading(false);
+                return;
+            }
+            
+            const res = await axios.post('/api/users/forgotpassword', { email });
+            if (res.data.success) {
+                toast.success("New OTP sent to your email!");
+                setResendCooldown(60);
+                setOtp('');
+            }
+        } catch (err: any) {
+            const msg = err?.response?.data?.error || err?.response?.data?.message || "Failed to send OTP. Please try again.";
+            toast.error(msg);
+        } finally {
+            setResendLoading(false);
+        }
+    };
+
+    // Password strength validation
+    const validatePassword = (pwd: string): string | null => {
+        if (pwd.length < 8) {
+            return "Password must be at least 8 characters long";
+        }
+        if (!/[A-Z]/.test(pwd)) {
+            return "Password must contain at least one uppercase letter";
+        }
+        if (!/[a-z]/.test(pwd)) {
+            return "Password must contain at least one lowercase letter";
+        }
+        if (!/[0-9]/.test(pwd)) {
+            return "Password must contain at least one number";
+        }
+        if (!/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) {
+            return "Password must contain at least one special character (!@#$%^&*...)";
+        }
+        return null;
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // Check if passwords match
         if (password !== confirmPassword) {
             setError('Passwords do not match');
+            toast.error('Passwords do not match');
             return;
         }
+        
+        // Check password strength
+        const strengthError = validatePassword(password);
+        if (strengthError) {
+            setError(strengthError);
+            toast.error(strengthError);
+            return;
+        }
+        
+        // Check if OTP is being used as password
+        if (otp && password.includes(otp)) {
+            setError("Password cannot contain the OTP code");
+            toast.error("Password cannot contain the OTP code");
+            return;
+        }
+        
+        // Check if password is too simple
+        const commonPasswords = ['password', '12345678', 'qwerty', 'abc12345', 'password123'];
+        if (commonPasswords.some(cp => password.toLowerCase().includes(cp))) {
+            setError("Password is too common. Please choose a stronger password.");
+            toast.error("Password is too common. Please choose a stronger password.");
+            return;
+        }
+        
         setLoading(true);
         setError(null);
         try {
-            const res = await axios.post('/api/users/resetpassword', { token: otp, password });
+            // Get email from localStorage for proper OTP validation
+            const email = userEmail || localStorage.getItem('resetPasswordEmail');
+            const res = await axios.post('/api/users/resetpassword', { token: otp, password, email });
             const msg = res?.data?.message || 'Password has been reset';
             toast.success(msg);
             const returnedEmail = res?.data?.email;
             if (returnedEmail) {
+                // Store email for potential resend OTP
+                localStorage.setItem('resetPasswordEmail', returnedEmail);
                 try {
                     await axios.post('/api/users/login', { email: returnedEmail, password });
                     window.location.replace('/');
@@ -83,7 +182,17 @@ export default function ResetPasswordOTPPage() {
                                     required
                                     placeholder="Enter 6-digit code"
                                 />
-                            </div>
+                                </div>
+                                <div className="text-right -mt-2 mb-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleResendOTP}
+                                        disabled={resendCooldown > 0 || resendLoading}
+                                        className="text-sm text-blue-400 hover:text-blue-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+                                    >
+                                        {resendLoading ? 'Sending...' : resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
+                                    </button>
+                                </div>
                             <div>
                                 <label htmlFor="password" className="block text-sm font-medium theme-muted">Password</label>
                                 <div className="relative mt-1">

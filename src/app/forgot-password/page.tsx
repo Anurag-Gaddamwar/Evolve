@@ -21,6 +21,8 @@ export default function ForgotPasswordPage() {
             if (res?.data?.success) {
                 setError(null);
                 toast.success('OTP sent to email');
+                // Store email for resend OTP functionality
+                localStorage.setItem('resetPasswordEmail', email);
                 router.push('/reset-password');
             } else {
                 // email not registered; remain on page and show explicit error

@@ -37,6 +37,7 @@ export default function ResetPasswordPage() {
             if (returnedEmail) {
                 try {
                     await axios.post('/api/users/login', { email: returnedEmail, password });
+                    try { sessionStorage.setItem('evolve_new_chat_on_login','true'); } catch {};
                     window.location.replace('/');
                     return;
                 } catch {

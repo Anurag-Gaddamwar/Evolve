@@ -34,7 +34,11 @@ export async function POST(request: NextRequest){
         }
 
         if (!user) {
-            return NextResponse.json({error: "Invalid or expired token"}, {status: 400});
+            // Check if it's a numeric OTP that was provided
+            if (/^\d{4,6}$/.test(token)) {
+                return NextResponse.json({error: "Invalid OTP. Please check the code and try again."}, {status: 400});
+            }
+            return NextResponse.json({error: "Invalid or expired verification link. Please request a new one."}, {status: 400});
         }
 
         user.isVerified = true;
@@ -52,10 +56,8 @@ export async function POST(request: NextRequest){
 
 
     } catch (error) {
-        // don't leak internal exception details to the client
-    console.error("verifyemail error", error);
-    const msg = (error instanceof Error && error.message) ? "Verification failed, please try again later" : "Verification failed";
-    return NextResponse.json({error: msg}, {status: 500})
+        console.error("Verify email error:", error);
+        return NextResponse.json({error: "Something went wrong. Please try again later."}, {status: 500});
     }
 
 }
