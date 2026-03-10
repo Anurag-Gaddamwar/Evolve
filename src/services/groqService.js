@@ -71,8 +71,8 @@ INSTRUCTIONS:
 1. Sentiment must be derived from the tone of the comments.  Output an
    object with percentages for \`positive\`, \`neutral\`, and \`negative\`.
 2. \`questions\` should be an array of distinct viewer questions found in the
-   comments (up to 5).
-3. \`topComments\` should list the 3–5 most representative or insightful
+   comments (up to 10).
+3. \`topComments\` should list the 10-15 most representative or insightful
    top-level comments.
 4. \`suggestions\` (now called contentRecommendations) must be an array of 5-8 detailed, actionable recommendations for future video content. Each item should explain the recommendation, why it's suggested based on data/feedback, and how to implement it.
 5. \`conclusion\` should be an array of key points summarizing the video's performance, including strengths, weaknesses, lessons, and future advice.

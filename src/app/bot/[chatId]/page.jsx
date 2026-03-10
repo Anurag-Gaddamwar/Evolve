@@ -1,8 +1,9 @@
+
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 
 const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 const createInitialChat = () => ({ id: createId(), title: 'New chat', updatedAt: Date.now(), pinned: false, messages: [] });
@@ -11,7 +12,7 @@ const createInitialChat = () => ({ id: createId(), title: 'New chat', updatedAt:
 const renderMessageText = (raw) => {
   if (!raw || typeof raw !== 'string') return raw;
   // escape HTML first
-  let s = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  let s = raw.replace(/&/g, '&amp;').replace(/</g, '<').replace(/>/g, '>');
   // bold **text**
   s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   // italic *text* (avoid converting inside bold markers)
@@ -117,8 +118,11 @@ InputBar.displayName = 'InputBar';
 
 // ── Main component ──────────────────────────────────────────────────────────
 
-export default function BotChat() {
+export default function BotChatPage() {
   const router = useRouter();
+  const params = useParams();
+  const chatIdFromUrl = params.chatId;
+  
   const [isMounted, setIsMounted]               = useState(false);
   const [chats, setChats]                       = useState([]);
   const [activeChatId, setActiveChatId]         = useState('');
@@ -276,6 +280,10 @@ export default function BotChat() {
   const goToAnalytics = useCallback(() => { closeMobileHistory(); router.push('/analytics'); }, [closeMobileHistory, router]);
   const goToBot       = useCallback(() => { closeMobileHistory(); router.push('/bot');       }, [closeMobileHistory, router]);
 
+  const navigateToChat = useCallback((id) => {
+    router.push(`/bot/${id}`);
+  }, [router]);
+
   useEffect(() => { setChatSessionId(createId()); }, []);
 
   useEffect(() => {
@@ -307,38 +315,56 @@ export default function BotChat() {
         try { sessionStorage.removeItem('evolve_new_chat_on_login'); } catch {};
       }
 
-      // If we just logged in and have existing chats with an empty one, reuse it
-      if (justLoggedIn && hc && hc.length > 0) {
-        const empty = hc.find(c => !c.messages?.length);
-        if (empty) {
-          setChats(hc);
-          setActiveChatId(empty.id);
-          sessionStorage.setItem(ACTIVE_CHAT_KEY, empty.id);
-          sessionStorage.setItem(SESSION_KEY, 'true');
-          setHasLoadedChats(true);
-          return;
-        }
-      }
-
       if (!hc) hc = [createInitialChat()];
       setChats(hc);
 
-      const existing = sessionStorage.getItem(SESSION_KEY);
-      const storedId = sessionStorage.getItem(ACTIVE_CHAT_KEY);
-      if (!existing || justLoggedIn) {
-        sessionStorage.setItem(SESSION_KEY,'true');
-        // Create new chat
-        const nc = createInitialChat();
-        setChats(prev => [nc, ...hc]);
-        setActiveChatId(nc.id);
-        sessionStorage.setItem(ACTIVE_CHAT_KEY,nc.id);
-      } else {
+      // If we have a chatId from URL, use it; otherwise use stored or first chat
+      let targetChatId = chatIdFromUrl;
+      
+      if (!targetChatId) {
+        // No chatId in URL, check for stored or use first
+        const storedId = sessionStorage.getItem(ACTIVE_CHAT_KEY);
         const exists = storedId && hc.some(c => c.id === storedId);
-        setActiveChatId(exists ? storedId : hc[0]?.id || '');
+        targetChatId = exists ? storedId : hc[0]?.id || '';
+        
+        // Redirect to the chat URL
+        if (targetChatId) {
+          router.replace(`/bot/${targetChatId}`);
+          setHasLoadedChats(true);
+          return;
+        }
+      } else {
+        // We have a chatId from URL - verify it exists
+        const chatExists = hc.some(c => c.id === targetChatId);
+        if (!chatExists) {
+          // Chat doesn't exist, create it
+          const nc = createInitialChat();
+          nc.id = targetChatId; // Use the URL's chatId
+          setChats(prev => [nc, ...prev]);
+        }
       }
+
+      setActiveChatId(targetChatId || '');
+      sessionStorage.setItem(ACTIVE_CHAT_KEY, targetChatId || '');
+      sessionStorage.setItem(SESSION_KEY, 'true');
       setHasLoadedChats(true);
     })();
-  }, [router]);
+  }, [router, chatIdFromUrl]);
+
+  // Handle URL chatId changes
+  useEffect(() => {
+    if (!hasLoadedChats || !chatIdFromUrl) return;
+    
+    const chatExists = chats.some(c => c.id === chatIdFromUrl);
+    if (!chatExists) {
+      // Chat doesn't exist in our list, create it
+      const nc = createInitialChat();
+      nc.id = chatIdFromUrl;
+      setChats(prev => [nc, ...prev]);
+    }
+    setActiveChatId(chatIdFromUrl);
+    sessionStorage.setItem(ACTIVE_CHAT_KEY, chatIdFromUrl);
+  }, [chatIdFromUrl, hasLoadedChats, chats]);
 
   useEffect(() => { if (hasLoadedChats&&activeChatId) sessionStorage.setItem(ACTIVE_CHAT_KEY,activeChatId); }, [activeChatId,hasLoadedChats]);
   useEffect(() => {
@@ -403,22 +429,16 @@ export default function BotChat() {
 
   const createNewChat = useCallback(() => {
     try {
-      const active=chats.find(c=>c.id===activeChatId);
-      // Only one empty chat allowed - if current is empty, just switch to it
-      if(active&&isChatEmpty(active)) { setError(''); toast('Switched to existing empty chat'); return; }
-      // Find any existing empty chat (not the active one) and switch to it
-      const empty=chats.find(c=>c.id!==activeChatId&&isChatEmpty(c));
-      if(empty) { setActiveChatId(empty.id); setError(''); toast('Reusing empty chat'); return; }
-      // Only create a new chat if the current one has messages
-      const nc=createInitialChat();
-      setChats(p=>[nc,...p]); setActiveChatId(nc.id); closeMobileHistory();
+      const nc = createInitialChat();
+      setChats(p => [nc, ...p]);
+      navigateToChat(nc.id);
       stickToBottomRef.current=true; setShowJumpToLatest(false); setInput(''); setError('');
       toast.success('New chat created');
     } catch (e) {
       console.error('createNewChat error', e);
       toast.error('Failed to create chat');
     }
-  }, [chats,activeChatId,closeMobileHistory]);
+  }, [navigateToChat]);
 
   const deleteChat = useCallback(id => {
     console.log('chat deleted', id);
@@ -426,16 +446,23 @@ export default function BotChat() {
     setOpenMenuId('');
     try {
       setChats(prev => {
-        const f=prev.filter(c=>c.id!==id);
-        if(f.length) { if(activeChatId===id) setActiveChatId(f[0].id); return f; }
-        const fb=createInitialChat(); setActiveChatId(fb.id); return [fb];
+        const f = prev.filter(c => c.id !== id);
+        if (f.length) { 
+          if (activeChatId === id) {
+            // Navigate to first remaining chat
+            setTimeout(() => navigateToChat(f[0].id), 0);
+          }
+          return f; 
+        }
+        const fb = createInitialChat();
+        setTimeout(() => navigateToChat(fb.id), 0);
+        return [fb];
       });
     } catch (e) {
       console.error('deleteChat failure', e);
-    toast.error('Failed to delete chat');
-      console.error('deleteChat error', e);
+      toast.error('Failed to delete chat');
     }
-  }, [activeChatId]);
+  }, [activeChatId, navigateToChat]);
 
   const startRename   = useCallback(id => { const t=chats.find(c=>c.id===id); if(!t) return; setRenameChatId(id); setRenameValue(t.title||'New chat'); setOpenMenuId(''); }, [chats]);
   const confirmRename = useCallback(() => {
@@ -448,7 +475,6 @@ export default function BotChat() {
     const other = chats.find(c => c.id !== renameChatId && (c.title||'').toLowerCase() === v.toLowerCase());
     if (other) {
       console.log('rename prevented: duplicate title', v);
-      // display via toast rather than chat error area
       toast.error('A chat with that name already exists.');
       return;
     }
@@ -465,19 +491,12 @@ export default function BotChat() {
     } catch (e) {
       console.error('togglePin failure', e);
       toast.error('Failed to update pin');
-      console.error('togglePin error', e);
     }
   }, []);
   const handleMenuToggle = useCallback(id => { setOpenMenuId(p=>p===id?'':id); }, []);
-  const handleChatSelect = useCallback((id,closeMobile=false) => { 
-    // When selecting a different chat, remove the current empty chat if it has no messages
-    const currentChat = chats.find(c => c.id === activeChatId);
-    if (currentChat && isChatEmpty(currentChat) && id !== activeChatId) {
-      setChats(prev => prev.filter(c => c.id !== activeChatId));
-    }
-    setActiveChatId(id); 
-    if(closeMobile) closeMobileHistory(); 
-  }, [chats, activeChatId, closeMobileHistory]);
+  const handleChatSelect = useCallback((id) => { 
+    navigateToChat(id);
+  }, [navigateToChat]);
 
   const updateMsgs = (chatId, updater) => {
     setChats(prev=>prev.map(c=>{
@@ -490,16 +509,15 @@ export default function BotChat() {
   const handleSend = useCallback(async () => {
     const msg=input.trim();
     if(!msg||!activeChatId||isSending) return;
-    // Define tid before try block to ensure it's available in catch
-    const tid = activeChatId;
     try {
       closeMobileHistory(); setError(''); setInput(''); setIsSending(true);
       stickToBottomRef.current=true;
       requestAnimationFrame(()=>{ const el=msgContainerRef.current; if(el) el.scrollTop=el.scrollHeight; });
 
       const userMsg={id:createId(),role:'user',text:msg,createdAt:Date.now()};
-      const snap=chats.find(c=>c.id===tid);
-      const history=(snap?.messages||[]).filter(m=>(m.role==='user'||m.role==='assistant')&&typeof m.text==='string').map(m=>({from:m.role==='assistant'?'assistant':'user',text:m.text})).slice(-10);
+      const snap=chats.find(c=>c.id===activeChatId);
+      const history=(snap?.messages||[]).filter(m=>(m.role==='user'||m.role==='assistant')&&typeof m.text==='string').map(m=>({from:m.role==='assistant'?'assistant':'user',text:m.text})).slice(-15);
+      const tid=activeChatId;
       updateMsgs(tid,p=>[...p,userMsg]);
       const api=process.env.NEXT_PUBLIC_BACKEND_URL||'http://localhost:3001';
       const r=await fetch(`${api}/api/bot-response`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userRequest:msg,chatSessionId,chatId:tid,chatHistory:history})});
@@ -509,9 +527,11 @@ export default function BotChat() {
       updateMsgs(tid,p=>[...p,{id:createId(),role:'assistant',text:txt,createdAt:Date.now()}]);
       setTimeout(()=>{ stickToBottomRef.current=true; const el=msgContainerRef.current; if(el) el.scrollTop=el.scrollHeight; },80);
     } catch(e) {
-      toast.error('Unable to fetch bot response');
-      setError('Error generating response. Please try again.');
-      updateMsgs(tid,p=>[...p,{id:createId(),role:'assistant',text:'Sorry, I could not respond right now.',createdAt:Date.now()}]);
+      const chatIdForError = activeChatId;
+      toast.error('Error generating response. Please try again.');
+      if (chatIdForError) {
+        updateMsgs(chatIdForError,p=>[...p,{id:createId(),role:'assistant',text:'Sorry, I could not respond right now.',createdAt:Date.now()}]);
+      }
       console.error('handleSend error', e);
     } finally { setIsSending(false); }
   }, [input,activeChatId,isSending,chats,chatSessionId,closeMobileHistory]);
@@ -562,7 +582,7 @@ export default function BotChat() {
             <div className="p-3 border-b border-[#2a2a2a]"><button onClick={createNewChat} className="w-full rounded-lg border border-[#3b3b3b] bg-[#1f1f1f] px-3 py-2 text-sm text-left hover:bg-[#262626]">+ New chat</button></div>
             <div className="px-3 py-3 border-b border-[#2a2a2a]"><input value={chatSearch} onChange={e=>setChatSearch(e.target.value)} className="w-full rounded-lg bg-[#111] border border-[#2f2f2f] px-3 py-2 text-sm text-[#d6d6d6] placeholder:text-[#a0a0a0] outline-none" placeholder="Search chats" /></div>
             <div className="px-3 pt-3 text-xs uppercase tracking-wide text-[#9f9f9f]">Your chats</div>
-            <ChatList {...chatListProps} onSelect={id=>handleChatSelect(id,false)} />
+            <ChatList {...chatListProps} onSelect={handleChatSelect} />
           </div>
         </aside>
         {/* Main */}
@@ -571,7 +591,7 @@ export default function BotChat() {
             <span className="font-semibold text-[20px]">Evolve</span>
             <button onClick={async()=>{if(isLoggingOut) return; setIsLoggingOut(true); try{sessionStorage.removeItem(SESSION_KEY);const r=await fetch('/api/users/logout',{method:'GET'}); if(!r.ok) throw new Error('logout failed'); toast.success('Logged out'); router.push('/login');}catch(e){console.error(e);toast.error('Logout failed');}finally{setIsLoggingOut(false);}}} disabled={isLoggingOut} className="border border-[#3a3a3a] bg-[#242424] rounded-lg px-3 py-1 text-sm hover:bg-[#2f2f2f] disabled:opacity-50">{isLoggingOut ? '...' : 'Logout'}</button>
           </header>
-          <div ref={setDesktopMsgRef} onScroll={e=>handleScroll(e.currentTarget)} className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+          <div ref={setDesktopMsgRef} onScroll={e=>handleScroll(e.currentTarget)} className="flex-1 min-h-0 overflow-y-auto app-scrollbar overscroll-contain">
             <div className="max-w-[900px] mx-auto px-6 py-8 flex flex-col gap-5">
               {activeMessages.length===0 && <div className="text-center text-[#a5a5a5] mt-20">Start a new conversation</div>}
               {activeMessages.map(m=>(
@@ -623,6 +643,7 @@ export default function BotChat() {
           ref={setMobileMsgRef}
           onScroll={e=>handleScroll(e.currentTarget)}
           style={{ position:'fixed', top:HEADER_H, left:0, right:0, bottom: NAV_H + INPUT_H, overflowY:'auto', overscrollBehavior:'contain' }}
+          className="app-scrollbar"
         >
           <div style={{ maxWidth:900, margin:'0 auto', padding:'24px 16px 8px', display:'flex', flexDirection:'column', gap:16 }}>
             {activeMessages.length===0 && <div style={{ textAlign:'center', color:'#a5a5a5', marginTop:80 }}>Start a new conversation</div>}
@@ -702,7 +723,7 @@ export default function BotChat() {
             <div style={{ padding:12, borderBottom:'1px solid #2a2a2a' }}><button onClick={createNewChat} style={{ width:'100%', borderRadius:8, border:'1px solid #3b3b3b', background:'#1f1f1f', padding:'8px 12px', fontSize:14, color:'#ececec', textAlign:'left', cursor:'pointer' }}>+ New chat</button></div>
             <div style={{ padding:12, borderBottom:'1px solid #2a2a2a' }}><input value={chatSearch} onChange={e=>setChatSearch(e.target.value)} style={{ width:'100%', borderRadius:8, border:'1px solid #2f2f2f', background:'#111', padding:'8px 12px', fontSize:14, color:'#d6d6d6', outline:'none', boxSizing:'border-box' }} placeholder="Search chats" /></div>
             <div style={{ padding:'12px 12px 4px', fontSize:11, textTransform:'uppercase', letterSpacing:'0.1em', color:'#9f9f9f' }}>Your chats</div>
-            <ChatList {...chatListProps} mobile onSelect={id=>handleChatSelect(id,true)} />
+            <ChatList {...chatListProps} mobile onSelect={handleChatSelect} />
           </div>
         </div>
       </div>
@@ -723,3 +744,4 @@ export default function BotChat() {
     </div>
   );
 }
+

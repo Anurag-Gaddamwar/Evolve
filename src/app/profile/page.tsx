@@ -8,8 +8,7 @@ import AppSidebarShell from "../components/AppSidebarShell";
 import VideoCard from "../components/VideoCard";
 import EditAccountModal from "../components/EditAccountModal";
 
-const PAGE_CHUNK_SIZE = 12;
-const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY || "";
+const PAGE_CHUNK_SIZE = 24;
 
 type VideoItem = {
   id: string;
@@ -27,18 +26,6 @@ type UserData = {
   subscriberCount: string;
   videoCount: string;
 };
-
-const channelCache = new Map<
-  string,
-  {
-    channelName: string;
-    channelProfileImage: string;
-    subscriberCount: string;
-    videoCount: string;
-  }
->();
-
-const videoFetchCache = new Map<string, VideoItem[]>();
 
 const normalizeVideos = (items: any[]): VideoItem[] => {
   const unique: VideoItem[] = [];
@@ -60,6 +47,7 @@ const normalizeVideos = (items: any[]): VideoItem[] => {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
 
   const [userData, setUserData] = useState<UserData>({
     username: "",
@@ -73,143 +61,135 @@ export default function ProfilePage() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [videoIds, setVideoIds] = useState<VideoItem[]>([]);
-  const [visibleCount, setVisibleCount] = useState(PAGE_CHUNK_SIZE);
+  const [totalVideos, setTotalVideos] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [copiedVideoId, setCopiedVideoId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const hasProfileToast = useRef(false);
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    getUserDetails();
-  }, []);
-
-  useEffect(() => {
-    setVisibleCount(PAGE_CHUNK_SIZE);
-  }, [videoIds.length]);
-
-  const getUserDetails = async () => {
+  // Fetch videos with pagination
+  const fetchVideos = useCallback(async (channelId: string, offset = 0, limit = PAGE_CHUNK_SIZE) => {
     try {
-      const res = await axios.get("/api/users/me");
-      const { username, email, profileImage, channelId } =
-        res.data?.data || {};
-
-      let fetched: VideoItem[];
-
-      if (videoFetchCache.has(channelId)) {
-        fetched = videoFetchCache.get(channelId)!;
-      } else {
-        fetched = await fetchVideos(channelId);
-        videoFetchCache.set(channelId, fetched);
-      }
-
-      setVideoIds(normalizeVideos(fetched));
-
-      let channelName = "";
-      let channelProfileImage = "";
-      let subscriberCount = "0";
-      let videoCount = "0";
-
-      if (channelCache.has(channelId)) {
-        const c = channelCache.get(channelId)!;
-        channelName = c.channelName;
-        channelProfileImage = c.channelProfileImage;
-        subscriberCount = c.subscriberCount;
-        videoCount = c.videoCount;
-      } else {
-        const channelDetailsResponse = await axios.get(
-          `https://www.googleapis.com/youtube/v3/channels?id=${channelId}&key=${YOUTUBE_API_KEY}&part=snippet,statistics`
-        );
-
-        const channelData =
-          channelDetailsResponse.data?.items?.[0] || {};
-
-        channelName = channelData?.snippet?.title || "";
-        channelProfileImage =
-          channelData?.snippet?.thumbnails?.default?.url || "";
-        subscriberCount =
-          channelData?.statistics?.subscriberCount || "0";
-        videoCount =
-          channelData?.statistics?.videoCount || "0";
-
-        channelCache.set(channelId, {
-          channelName,
-          channelProfileImage,
-          subscriberCount,
-          videoCount,
-        });
-      }
-
-      setUserData({
-        username: username || "",
-        email: email || "",
-        profileImage: profileImage || "",
-        channelId: channelId || "",
-        channelName,
-        channelProfileImage,
-        subscriberCount,
-        videoCount,
-      });
-
-      if (!hasProfileToast.current) {
-        toast.success("Profile loaded");
-        hasProfileToast.current = true;
-      }
-    } catch (error: any) {
-      console.error("Error fetching profile:", error);
-      toast.error("Unable to load profile");
-
-      if (error.response?.status === 401) {
-        router.push("/login");
-        return;
-      }
-
-      setUserData({
-        username: "",
-        email: "",
-        profileImage: "",
-        channelId: "",
-        channelName: "",
-        channelProfileImage: "",
-        subscriberCount: "0",
-        videoCount: "0",
-      });
-      setVideoIds([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchVideos = async (channelId: string) => {
-    try {
-      const apiUrl =
-        process.env.NEXT_PUBLIC_BACKEND_URL ||
-        "http://localhost:3001";
       const response = await axios.get(
-        `${apiUrl}/api/get-videos?channelId=${channelId}`
+        `${API_URL}/api/get-videos?channelId=${channelId}&offset=${offset}&limit=${limit}`
       );
-      return response.data?.videoIds || [];
+      return {
+        videos: response.data?.videoIds || [],
+        total: response.data?.total || 0,
+        hasMore: response.data?.hasMore || false
+      };
     } catch (error) {
+      console.error("Error fetching videos:", error);
       toast.error("Unable to load channel videos");
-      return [];
+      return { videos: [], total: 0, hasMore: false };
     }
-  };
+  }, [API_URL]);
 
-  const handleCopyLink = (videoId: string) => {
-    const videoLink = `https://www.youtube.com/watch?v=${videoId}`;
-    navigator.clipboard.writeText(videoLink).then(() => {
-      setCopiedVideoId(videoId);
-      toast.success("Link copied");
-      setTimeout(() => setCopiedVideoId(null), 1400);
-    });
-  };
+  // Fetch channel details using backend (which has caching)
+  const fetchChannelDetails = useCallback(async (channelId: string) => {
+    try {
+      const response = await axios.get(
+        `${API_URL}/api/get-channel-details?channelId=${channelId}`
+      );
+      return response.data?.details || null;
+    } catch (error) {
+      console.error("Error fetching channel details:", error);
+      return null;
+    }
+  }, [API_URL]);
 
-  const loadMoreVideos = useCallback(() => {
-    setVisibleCount((prev) =>
-      Math.min(prev + PAGE_CHUNK_SIZE, videoIds.length)
-    );
-  }, [videoIds.length]);
+  // Parallelized data fetching
+  useEffect(() => {
+    const loadProfileData = async () => {
+      try {
+        // Fetch user data first to get channelId
+        const userRes = await axios.get("/api/users/me");
+        const { username, email, profileImage, channelId } = userRes.data?.data || {};
+
+        if (!channelId) {
+          // No channel set up yet
+          setUserData({
+            username: username || "",
+            email: email || "",
+            profileImage: profileImage || "",
+            channelId: "",
+            channelName: "",
+            channelProfileImage: "",
+            subscriberCount: "0",
+            videoCount: "0",
+          });
+          setLoading(false);
+          return;
+        }
+
+        // Parallel fetch: videos and channel details
+        const [videosData, channelDetails] = await Promise.all([
+          fetchVideos(channelId, 0, PAGE_CHUNK_SIZE),
+          fetchChannelDetails(channelId)
+        ]);
+
+        setVideoIds(normalizeVideos(videosData.videos));
+        setTotalVideos(videosData.total);
+        setHasMore(videosData.hasMore);
+
+        const channel = channelDetails || {};
+
+        setUserData({
+          username: username || "",
+          email: email || "",
+          profileImage: profileImage || "",
+          channelId: channelId || "",
+          channelName: channel.title || "",
+          channelProfileImage: channel.profileImage || "",
+          subscriberCount: channel.subscriberCount || "0",
+          videoCount: channel.videoCount || "0",
+        });
+
+        if (!hasProfileToast.current) {
+          toast.success("Profile loaded");
+          hasProfileToast.current = true;
+        }
+      } catch (error: any) {
+        console.error("Error fetching profile:", error);
+        toast.error("Unable to load profile");
+
+        if (error.response?.status === 401) {
+          router.push("/login");
+          return;
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfileData();
+  }, [fetchVideos, fetchChannelDetails, router]);
+
+  // Load more videos when scrolling
+  const loadMoreVideos = useCallback(async () => {
+    if (!hasMore || loadingMore) return;
+
+    setLoadingMore(true);
+    try {
+      const newOffset = videoIds.length;
+      const { videos, hasMore: moreAvailable } = await fetchVideos(
+        userData.channelId,
+        newOffset,
+        PAGE_CHUNK_SIZE
+      );
+
+      if (videos.length > 0) {
+        setVideoIds(prev => [...prev, ...normalizeVideos(videos)]);
+        setHasMore(moreAvailable);
+      }
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [hasMore, loadingMore, videoIds.length, userData.channelId, fetchVideos]);
 
   useEffect(() => {
     const target = loadMoreRef.current;
@@ -226,24 +206,53 @@ export default function ProfilePage() {
     return () => observer.disconnect();
   }, [loadMoreVideos]);
 
-  const displayedVideos = useMemo(
-    () => videoIds.slice(0, visibleCount),
-    [videoIds, visibleCount]
-  );
-
-  const latestVideo = displayedVideos[0];
-  const hasMoreVideos = displayedVideos.length < videoIds.length;
+  const latestVideo = videoIds[0];
 
   const channelHandle = useMemo(() => {
-    const source =
-      userData.channelName || userData.username || "creator";
+    const source = userData.channelName || userData.username || "creator";
     return `@${source.replace(/\s+/g, "")}`;
   }, [userData.channelName, userData.username]);
+
+  const handleCopyLink = (videoId: string) => {
+    const videoLink = `https://www.youtube.com/watch?v=${videoId}`;
+    navigator.clipboard.writeText(videoLink).then(() => {
+      setCopiedVideoId(videoId);
+      toast.success("Link copied");
+      setTimeout(() => setCopiedVideoId(null), 1400);
+    });
+  };
+
+  const refreshProfile = async () => {
+    if (!userData.channelId) return;
+    
+    const [videosData, channelDetails] = await Promise.all([
+      fetchVideos(userData.channelId, 0, PAGE_CHUNK_SIZE),
+      fetchChannelDetails(userData.channelId)
+    ]);
+
+    setVideoIds(normalizeVideos(videosData.videos));
+    setTotalVideos(videosData.total);
+    setHasMore(videosData.hasMore);
+
+    if (channelDetails) {
+      setUserData(prev => ({
+        ...prev,
+        channelName: channelDetails.title || prev.channelName,
+        channelProfileImage: channelDetails.profileImage || prev.channelProfileImage,
+        subscriberCount: channelDetails.subscriberCount || prev.subscriberCount,
+        videoCount: channelDetails.videoCount || prev.videoCount,
+      }));
+    }
+  };
 
   if (loading) {
     return (
       <AppSidebarShell title="Profile">
-        <div className="p-6 text-white">Loading...</div>
+        <div className="flex items-center justify-center min-h-[400px] gap-2">
+          <div className="w-3 h-3 bg-[#a8a8a8] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+          <div className="w-3 h-3 bg-[#a8a8a8] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+          <div className="w-3 h-3 bg-[#a8a8a8] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+        </div>
       </AppSidebarShell>
     );
   }
@@ -301,7 +310,7 @@ export default function ProfilePage() {
           )}
 
           <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {displayedVideos.map((video) => (
+            {videoIds.map((video) => (
               <VideoCard
                 key={video.id}
                 video={video}
@@ -309,7 +318,13 @@ export default function ProfilePage() {
               />
             ))}
           </div>
-          
+           
+          {/* Sentinel element for infinite scroll */}
+          {hasMore && (
+            <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
+              <span className="text-sm text-[#a8a8a8]">Loading more...</span>
+            </div>
+          )}
         </section>
       </div>
 
@@ -318,7 +333,7 @@ export default function ProfilePage() {
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         userChannelId={userData.channelId}
-        onSuccess={getUserDetails}
+        onSuccess={refreshProfile}
       />
     </AppSidebarShell>
   );

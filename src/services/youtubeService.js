@@ -65,27 +65,42 @@ async function fetchChannelDetails(channelId) {
   }
 }
 
-async function fetchVideoIdsByPlaylistId(playlistId) {
+async function fetchVideoIdsByPlaylistId(playlistId, maxVideos = 500) {
   const cacheKey = `videoIds:${playlistId}`;
   const cached = ytCache.get(cacheKey);
   if (cached) return cached;
 
   try {
-    const response = await axios.get('https://www.googleapis.com/youtube/v3/playlistItems', {
-      params: {
-        part: 'contentDetails,snippet',
-        playlistId,
-        maxResults: 20,
-        key: YOUTUBE_API_KEY,
-      },
-    });
-    const videoIds = response.data.items.map(item => ({
-      id: item.contentDetails.videoId,
-      title: item.snippet?.title || '',
-      thumbnail: item.snippet?.thumbnails?.maxres?.url || item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '',
-    }));
-    ytCache.set(cacheKey, videoIds);
-    return videoIds;
+    const allVideos = [];
+    let nextPageToken = null;
+    const maxResults = 50; // YouTube API maximum per request
+
+    do {
+      const response = await axios.get('https://www.googleapis.com/youtube/v3/playlistItems', {
+        params: {
+          part: 'contentDetails,snippet',
+          playlistId,
+          maxResults,
+          pageToken: nextPageToken || undefined,
+          key: YOUTUBE_API_KEY,
+        },
+      });
+
+      const videos = response.data.items.map(item => ({
+        id: item.contentDetails.videoId,
+        title: item.snippet?.title || '',
+        thumbnail: item.snippet?.thumbnails?.maxres?.url || item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '',
+      }));
+
+      allVideos.push(...videos);
+      nextPageToken = response.data.nextPageToken || null;
+
+      // Stop if we've reached the maxVideos limit or no more pages
+    } while (nextPageToken && allVideos.length < maxVideos);
+
+    // Cache the results
+    ytCache.set(cacheKey, allVideos);
+    return allVideos;
   } catch (error) {
     console.error('Error fetching video IDs by playlist ID:', error);
     throw new Error('Error fetching video IDs by playlist ID');
