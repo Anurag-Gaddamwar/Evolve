@@ -24,18 +24,18 @@ import {
 
 const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY || '';
 
-const extractSection = (text, startLabel, endLabel) => {
-  if (!text || !startLabel) return '';
-  const start = text.indexOf(startLabel);
-  if (start === -1) return '';
+// const extractSection = (text, startLabel, endLabel) => {
+//   if (!text || !startLabel) return '';
+//   const start = text.indexOf(startLabel);
+//   if (start === -1) return '';
 
-  const contentStart = start + startLabel.length;
-  const contentEnd = endLabel ? text.indexOf(endLabel, contentStart) : -1;
-  return text
-    .slice(contentStart, contentEnd === -1 ? undefined : contentEnd)
-    .replace(/\*/g, '')
-    .trim();
-};
+//   const contentStart = start + startLabel.length;
+//   const contentEnd = endLabel ? text.indexOf(endLabel, contentStart) : -1;
+//   return text
+//     .slice(contentStart, contentEnd === -1 ? undefined : contentEnd)
+//     .replace(/\*/g, '')
+//     .trim();
+// };
 
 const formatNumber = (value) => {
   if (value == null) return '--';
@@ -917,7 +917,7 @@ const CommentSummarizer = () => {
 
   return (
     <AppSidebarShell title="Analysis">
-      <div className="max-w-full sm:max-w-6xl w-full mx-auto px-4 sm:px-6 text-[#ececec]">
+        <div className="max-w-[1320px] mx-auto w-full px-2 sm:px-[-10px] text-[#ececec]">
         {/* header + form shown only before report generated */}
         {!hasLiveReport ? (
           <div className="rounded-xl border border-[#2a2a2a] bg-[#171717] p-6 md:p-8">

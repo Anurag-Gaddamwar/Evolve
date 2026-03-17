@@ -51,8 +51,19 @@ const Navbar = () => {
         {/* right: links/logout (hidden on small screens) */}
         <div className="hidden md:flex items-center space-x-4">
           <a href="/analytics" className="theme-link">Analyze</a>
-          <a href="/bot" className="theme-link">Imaginate</a>
-          <a href="/profile" className="theme-link">Profile</a>
+          <div className="group relative">
+            <button className="flex items-center gap-1 theme-link">
+              Features 
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 group-hover:-translate-y-0.5 group-hover:animate-bounce theme-text transition-all duration-300 ease-in-out" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <div className="absolute left-0 top-full mt-1 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 min-w-max">
+              <a href="/bot" className="block px-4 py-2 theme-link hover:bg-[#2a2a2a]">AI Bot</a>
+              <a href="/analytics" className="block px-4 py-2 theme-link hover:bg-[#2a2a2a]">Analytics</a>
+              <a href="/profile" className="block px-4 py-2 theme-link hover:bg-[#2a2a2a]">Profile</a>
+            </div>
+          </div>
           <button
             onClick={toggleTheme}
             className="px-3 py-1 rounded-full border theme-border theme-surface theme-text text-sm"

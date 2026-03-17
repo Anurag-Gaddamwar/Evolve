@@ -109,6 +109,11 @@ body {
   color: var(--color-text);
 }
 
+html {
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a2a #171717;
+}
+
 .app-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: #3b3b3b transparent;
@@ -119,19 +124,20 @@ body {
   height: 10px;
 }
 
-.app-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
+.app-scrollbar::-webkit-scrollbar-track,
+html::-webkit-scrollbar-track {
+  background: #171717;
 }
 
 .app-scrollbar::-webkit-scrollbar-thumb {
-  background: #2e2e2e;
+  background: #2a2a2a;
   border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 
 .app-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #4b4b4b;
+  background: #3b3b3b;
   background-clip: content-box;
 }
 

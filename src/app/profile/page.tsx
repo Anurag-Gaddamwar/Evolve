@@ -117,11 +117,14 @@ export default function ProfilePage() {
             email: email || "",
             profileImage: profileImage || "",
             channelId: "",
-            channelName: "",
+            channelName: "You don't have a YouTube channel",
             channelProfileImage: "",
             subscriberCount: "0",
             videoCount: "0",
           });
+          setVideoIds([]);
+          setTotalVideos(0);
+          setHasMore(false);
           setLoading(false);
           return;
         }
@@ -223,25 +226,55 @@ export default function ProfilePage() {
   };
 
   const refreshProfile = async () => {
-    if (!userData.channelId) return;
-    
-    const [videosData, channelDetails] = await Promise.all([
-      fetchVideos(userData.channelId, 0, PAGE_CHUNK_SIZE),
-      fetchChannelDetails(userData.channelId)
-    ]);
+    try {
+      // Refetch fresh user data (in case channelId changed)
+      const userRes = await axios.get("/api/users/me");
+      const { username, email, profileImage, channelId } = userRes.data?.data || {};
 
-    setVideoIds(normalizeVideos(videosData.videos));
-    setTotalVideos(videosData.total);
-    setHasMore(videosData.hasMore);
+      if (!channelId) {
+        setUserData({
+          username: username || "",
+          email: email || "",
+          profileImage: profileImage || "",
+          channelId: "",
+          channelName: "",
+          channelProfileImage: "",
+          subscriberCount: "0",
+          videoCount: "0",
+        });
+        setVideoIds([]);
+        setTotalVideos(0);
+        setHasMore(false);
+        return;
+      }
 
-    if (channelDetails) {
-      setUserData(prev => ({
-        ...prev,
-        channelName: channelDetails.title || prev.channelName,
-        channelProfileImage: channelDetails.profileImage || prev.channelProfileImage,
-        subscriberCount: channelDetails.subscriberCount || prev.subscriberCount,
-        videoCount: channelDetails.videoCount || prev.videoCount,
-      }));
+      // Parallel fetch new videos + channel details for updated channelId
+      const [videosData, channelDetails] = await Promise.all([
+        fetchVideos(channelId, 0, PAGE_CHUNK_SIZE),
+        fetchChannelDetails(channelId)
+      ]);
+
+      setVideoIds(normalizeVideos(videosData.videos));
+      setTotalVideos(videosData.total);
+      setHasMore(videosData.hasMore);
+
+      const channel = channelDetails || {};
+
+      setUserData({
+        username: username || "",
+        email: email || "",
+        profileImage: profileImage || "",
+        channelId: channelId || "",
+        channelName: channel.title || "",
+        channelProfileImage: channel.profileImage || "",
+        subscriberCount: channel.subscriberCount || "0",
+        videoCount: channel.videoCount || "0",
+      });
+
+      toast.success("Profile refreshed with new channel data");
+    } catch (error: any) {
+      console.error("Refresh error:", error);
+      toast.error("Failed to refresh profile");
     }
   };
 
@@ -267,9 +300,13 @@ export default function ProfilePage() {
           <div className="absolute top-4 right-4">
             <button
               onClick={() => setShowModal(true)}
-              className="px-3 py-1 bg-[#2a2a2a] rounded text-sm hover:bg-[#3a3a3a]"
+              className={`px-3 py-1 rounded text-sm ${userData.email === 'guestuser@gmail.com' ? 'bg-gray-600 cursor-default text-gray-400 hover:bg-gray-600' : 'bg-[#2a2a2a] hover:bg-[#3a3a3a]'}`}
             >
+
+
               Edit
+            
+            
             </button>
           </div>
 
@@ -305,19 +342,25 @@ export default function ProfilePage() {
 
         {/* Videos Section */}
         <section className="space-y-5">
-          {latestVideo && (
-            <h2 className="font-semibold mb-2">Latest Uploads</h2>
+          {videoIds.length > 0 ? (
+            <>
+              <h2 className="font-semibold mb-2">Latest Uploads</h2>
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {videoIds.map((video) => (
+                  <VideoCard
+                    key={video.id}
+                    video={video}
+                    onCopy={handleCopyLink}
+                  />
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="col-span-full text-center py-12 text-[#a8a8a8]">
+              <h2 className="text-lg font-semibold mb-2">No videos yet</h2>
+              <p className="text-sm">Add your YouTube channel ID to see your latest uploads.</p>
+            </div>
           )}
-
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {videoIds.map((video) => (
-              <VideoCard
-                key={video.id}
-                video={video}
-                onCopy={handleCopyLink}
-              />
-            ))}
-          </div>
            
           {/* Sentinel element for infinite scroll */}
           {hasMore && (

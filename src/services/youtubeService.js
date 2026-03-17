@@ -33,6 +33,22 @@ async function fetchUploadsPlaylistId(channelId) {
   }
 }
 
+async function validateChannelId(channelId) {
+  try {
+    const response = await axios.get('https://www.googleapis.com/youtube/v3/channels', {
+      params: {
+        part: 'snippet',
+        id: channelId,
+        key: YOUTUBE_API_KEY,
+      },
+    });
+    return response.data.items.length > 0;
+  } catch (error) {
+    console.error('Invalid YouTube channel ID:', channelId, error.response?.status);
+    return false;
+  }
+}
+
 async function fetchChannelDetails(channelId) {
   const cacheKey = `channelDetails:${channelId}`;
   const cached = ytCache.get(cacheKey);

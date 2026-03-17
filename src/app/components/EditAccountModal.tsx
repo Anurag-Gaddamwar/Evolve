@@ -105,14 +105,19 @@ export default function EditAccountModal({
       toast.error("No change to channel");
       return;
     }
+    // Optional: client-side check for empty/whitespace
+    if (!channelId.trim()) {
+      toast.error("Channel ID cannot be empty");
+      return;
+    }
     try {
       setLoading(true);
       await axios.put("/api/users/me", { channelId });
-      toast.success("Channel updated");
+      toast.success("Channel updated successfully!");
       onSuccess();
       close();
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || "Update failed");
+      toast.error(err?.response?.data?.error || "Update failed. Please check your credentials.");
     } finally {
       setLoading(false);
     }
@@ -200,8 +205,8 @@ export default function EditAccountModal({
           <div className="border border-[#333] rounded">
             <div className="flex items-center justify-between w-full">
               <button
-                className="flex items-center gap-2 px-4 py-2 bg-[#232323] flex-1"
-                onClick={() => setShowChannelEdit((p) => !p)}
+                className="flex items-center gap-2 px-4 py-2 bg-[#232323] flex-1 cursor-not-allowed opacity-50"
+                onClick={() => toast.error('Guest users cannot edit profile. Please login with your own account.')}
               >
                 <span className="text-xs font-semibold text-[#ccc]">Edit Channel ID</span>
                 <svg
@@ -239,8 +244,8 @@ export default function EditAccountModal({
           <div className="border border-[#333] rounded mt-3">
             <div className="flex items-center justify-between w-full">
               <button
-                className="flex items-center gap-2 px-4 py-2 bg-[#232323] flex-1"
-                onClick={() => setShowPwdEdit((p) => !p)}
+                className="flex items-center gap-2 px-4 py-2 bg-[#232323] flex-1 cursor-not-allowed opacity-50"
+                onClick={() => toast.error('Guest users cannot edit profile. Please login with your own account.')}
               >
                 <span className="text-xs font-semibold text-[#ccc]">Change Password</span>
                 <svg

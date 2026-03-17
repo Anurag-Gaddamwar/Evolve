@@ -22,7 +22,28 @@ export default function LoginPage() {
   const [loading, setLoading] = useState<boolean>(false); // State for loading indicator
   const [showPassword, setShowPassword] = useState(false);
 
-  const onLogin = async (e) => {
+const onGuestLogin = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  toast.loading('Logging in as guest...', { id: 'guest-login' });
+  try {
+    const response = await axios.post("/api/users/login", {
+      email: 'guestuser@gmail.com',
+      password: 'Guest@123'
+    });
+    toast.success("Guest login success!", { id: 'guest-login' });
+    try { sessionStorage.setItem('evolve_new_chat_on_login','true'); } catch {};
+    window.location.replace("/");
+  } catch (error: any) {
+    const msg = error?.response?.data?.error || "Guest login failed. Please try normal login.";
+    toast.error(msg, { id: 'guest-login' });
+    console.error('Guest login error:', error);
+  } finally {
+    setLoading(false);
+  }
+};
+
+const onLogin = async (e) => {
     e.preventDefault(); // Prevent default form submission behavior
     setLoading(true); // Set loading to true when login button is clicked
 
@@ -128,7 +149,14 @@ export default function LoginPage() {
                 className="w-full py-2 px-4 theme-accent-bg cursor-pointer font-semibold rounded-lg shadow-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-opacity-75"
                 disabled={buttonDisabled || loading} 
               >
-                {loading ? "..." : "Login"} 
+{loading ? "..." : "Login"} 
+              </button>
+              <button
+                onClick={onGuestLogin}
+                disabled={loading}
+                className="w-full py-2 px-4 mt-3 border border-gray-500 bg-gray-800 text-gray-300 font-semibold rounded-lg shadow-md hover:bg-gray-700 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-gray-500"
+              >
+                👋 Login as Guest (Quick Demo)
               </button>
             </form>
             <div className="flex flex-wrap items-center justify-center gap-4 mt-4 text-sm theme-muted">

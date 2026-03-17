@@ -95,7 +95,9 @@ to run specific modules as needed
 ---
 ## 🔧 Features & Usage
 
-- **Authentication** – signup/login/logout, password reset, email verification
+**🚀 Quick Demo (Recruiters):** Go to http://localhost:3000/login → Click "Login as Guest" button → Instant access to dashboard/bot/analytics! (No signup needed)
+
+- **Authentication** – signup/login/logout/**guest demo**, password reset, email verification
 - **Profile pages** – browse/edit user profiles, dynamic routes
 - **Video service** – search and display videos via YouTube API
 - **AI Chat** – powered by Gemini or another model using `chatService.js`
