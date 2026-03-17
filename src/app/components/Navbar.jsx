@@ -52,16 +52,20 @@ const Navbar = () => {
         <div className="hidden md:flex items-center space-x-4">
           <a href="/analytics" className="theme-link">Analyze</a>
           <div className="group relative">
-            <button className="flex items-center gap-1 theme-link">
-              Features 
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 group-hover:-translate-y-0.5 group-hover:animate-bounce theme-text transition-all duration-300 ease-in-out" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            <div className="absolute left-0 top-full mt-1 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 min-w-max">
-              <a href="/bot" className="block px-4 py-2 theme-link hover:bg-[#2a2a2a]">AI Bot</a>
-              <a href="/analytics" className="block px-4 py-2 theme-link hover:bg-[#2a2a2a]">Analytics</a>
-              <a href="/profile" className="block px-4 py-2 theme-link hover:bg-[#2a2a2a]">Profile</a>
+            <div className="inline-flex items-center theme-link bg-gradient-to-r from-transparent via-[#4ade80]/20 to-transparent p-1 rounded-full group">
+              Features
+              <div className="inline-flex items-center ml-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 animate-spin theme-text/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="animation-duration: 2s;">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12v6a2 2 0 002 2h6a2 2 0 002-2v-6M5 12H3a2 2 0 00-2 2v4a2 2 0 002 2h4a2 2 0 002-2v-4a2 2 0 00-2-2z" />
+                </svg>
+                <div className="w-2 h-2 bg-gradient-to-r from-[#4ade80] to-[#059669] rounded-full ml-2 animate-ping absolute"></div>
+                <div className="w-2 h-2 bg-gradient-to-r from-[#4ade80] to-[#059669] rounded-full ml-2 animate-pulse relative"></div>
+              </div>
+            </div>
+            <div className="absolute left-0 top-full mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-sm border border-[#2a2a2a] rounded-xl shadow-2xl opacity-0 invisible scale-95 -translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:scale-100 group-hover:translate-y-0 transition-all duration-300 ease-out z-50 p-1">
+              <a href="/bot" className="flex items-center gap-2 px-4 py-3 theme-link hover:bg-[#2a2a2a]/50 rounded-lg transition-all duration-200">🤖 AI Bot</a>
+              <a href="/analytics" className="flex items-center gap-2 px-4 py-3 theme-link hover:bg-[#2a2a2a]/50 rounded-lg transition-all duration-200">📊 Analytics</a>
+              <a href="/profile" className="flex items-center gap-2 px-4 py-3 theme-link hover:bg-[#2a2a2a]/50 rounded-lg transition-all duration-200">👤 Profile</a>
             </div>
           </div>
           <button

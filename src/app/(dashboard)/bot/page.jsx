@@ -118,6 +118,7 @@ InputBar.displayName = 'InputBar';
 // ── Main component ──────────────────────────────────────────────────────────
 
 export default function BotChat() {
+  // AppSidebarShell moved to layout - pure content only
   const router = useRouter();
   const [isMounted, setIsMounted]               = useState(false);
   const [chats, setChats]                       = useState([]);

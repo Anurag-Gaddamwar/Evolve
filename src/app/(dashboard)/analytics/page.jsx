@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import AppSidebarShell from '../components/AppSidebarShell';
+// AppSidebarShell moved to layout
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faThumbsUp,
@@ -916,8 +916,8 @@ const CommentSummarizer = () => {
   };
 
   return (
-    <AppSidebarShell title="Analysis">
-        <div className="max-w-[1320px] mx-auto w-full px-2 sm:px-[-10px] text-[#ececec]">
+        <div className="max-w-[1320px] mx-auto w-full px-2 sm:px-6 text-[#ececec]">
+
         {/* header + form shown only before report generated */}
         {!hasLiveReport ? (
           <div className="rounded-xl border border-[#2a2a2a] bg-[#171717] p-6 md:p-8">
@@ -987,7 +987,6 @@ const CommentSummarizer = () => {
           ) : null}
         </div>
       </div>
-    </AppSidebarShell>
   );
 };
 

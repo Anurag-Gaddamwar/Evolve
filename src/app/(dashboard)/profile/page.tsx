@@ -4,9 +4,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
-import AppSidebarShell from "../components/AppSidebarShell";
-import VideoCard from "../components/VideoCard";
-import EditAccountModal from "../components/EditAccountModal";
+import VideoCard from "../../components/VideoCard";
+import EditAccountModalWrapper from "./EditAccountModalWrapper";
 
 const PAGE_CHUNK_SIZE = 24;
 
@@ -71,7 +70,6 @@ export default function ProfilePage() {
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  // Fetch videos with pagination
   const fetchVideos = useCallback(async (channelId: string, offset = 0, limit = PAGE_CHUNK_SIZE) => {
     try {
       const response = await axios.get(
@@ -89,7 +87,6 @@ export default function ProfilePage() {
     }
   }, [API_URL]);
 
-  // Fetch channel details using backend (which has caching)
   const fetchChannelDetails = useCallback(async (channelId: string) => {
     try {
       const response = await axios.get(
@@ -102,16 +99,13 @@ export default function ProfilePage() {
     }
   }, [API_URL]);
 
-  // Parallelized data fetching
   useEffect(() => {
     const loadProfileData = async () => {
       try {
-        // Fetch user data first to get channelId
         const userRes = await axios.get("/api/users/me");
         const { username, email, profileImage, channelId } = userRes.data?.data || {};
 
         if (!channelId) {
-          // No channel set up yet
           setUserData({
             username: username || "",
             email: email || "",
@@ -129,7 +123,6 @@ export default function ProfilePage() {
           return;
         }
 
-        // Parallel fetch: videos and channel details
         const [videosData, channelDetails] = await Promise.all([
           fetchVideos(channelId, 0, PAGE_CHUNK_SIZE),
           fetchChannelDetails(channelId)
@@ -172,7 +165,6 @@ export default function ProfilePage() {
     loadProfileData();
   }, [fetchVideos, fetchChannelDetails, router]);
 
-  // Load more videos when scrolling
   const loadMoreVideos = useCallback(async () => {
     if (!hasMore || loadingMore) return;
 
@@ -209,8 +201,6 @@ export default function ProfilePage() {
     return () => observer.disconnect();
   }, [loadMoreVideos]);
 
-  const latestVideo = videoIds[0];
-
   const channelHandle = useMemo(() => {
     const source = userData.channelName || userData.username || "creator";
     return `@${source.replace(/\s+/g, "")}`;
@@ -227,7 +217,6 @@ export default function ProfilePage() {
 
   const refreshProfile = async () => {
     try {
-      // Refetch fresh user data (in case channelId changed)
       const userRes = await axios.get("/api/users/me");
       const { username, email, profileImage, channelId } = userRes.data?.data || {};
 
@@ -248,7 +237,6 @@ export default function ProfilePage() {
         return;
       }
 
-      // Parallel fetch new videos + channel details for updated channelId
       const [videosData, channelDetails] = await Promise.all([
         fetchVideos(channelId, 0, PAGE_CHUNK_SIZE),
         fetchChannelDetails(channelId)
@@ -280,71 +268,55 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <AppSidebarShell title="Profile">
-        <div className="flex items-center justify-center min-h-[400px] gap-2">
-          <div className="w-3 h-3 bg-[#a8a8a8] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-          <div className="w-3 h-3 bg-[#a8a8a8] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-          <div className="w-3 h-3 bg-[#a8a8a8] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-        </div>
-      </AppSidebarShell>
+      <div className="flex items-center justify-center min-h-[400px] gap-2">
+        <div className="w-3 h-3 bg-[#a8a8a8] rounded-full animate-bounce [animation-delay:0ms]"></div>
+        <div className="w-3 h-3 bg-[#a8a8a8] rounded-full animate-bounce [animation-delay:150ms]"></div>
+        <div className="w-3 h-3 bg-[#a8a8a8] rounded-full animate-bounce [animation-delay:300ms]"></div>
+      </div>
     );
   }
 
   return (
-    <AppSidebarShell title="Profile">
+    <>
       <div className="max-w-[1320px] mx-auto w-full text-[#ececec] space-y-6 pb-8">
-
-        {/* Profile Header */}
         <section className="relative rounded-2xl border border-[#2a2a2a] bg-[#171717] p-6">
-
           <div className="absolute top-4 right-4">
             <button
               onClick={() => setShowModal(true)}
               className={`px-3 py-1 rounded text-sm ${userData.email === 'guestuser@gmail.com' ? 'bg-gray-600 cursor-default text-gray-400 hover:bg-gray-600' : 'bg-[#2a2a2a] hover:bg-[#3a3a3a]'}`}
             >
-
-
               Edit
-            
-            
             </button>
           </div>
-
           <div className="flex items-center gap-5">
             <div className="w-28 h-28 rounded-full overflow-hidden bg-[#222]">
               {userData.channelProfileImage ? (
                 <img
                   src={userData.channelProfileImage}
                   className="w-full h-full object-cover"
+                  alt="Channel avatar"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-xl">
-                  {(userData.channelName ||
-                    userData.username ||
-                    "U")[0].toUpperCase()}
+                <div className="w-full h-full flex items-center justify-center text-xl bg-gradient-to-br from-gray-600 to-gray-700">
+                  {(userData.channelName || userData.username || "U")[0].toUpperCase()}
                 </div>
               )}
             </div>
-
             <div>
               <h1 className="text-2xl font-semibold">
-                {userData.channelName ||
-                  userData.username ||
-                  "Creator"}
+                {userData.channelName || userData.username || "Creator"}
               </h1>
               <p className="text-sm text-[#a8a8a8] mt-1">
-                {channelHandle} •{" "}
-                {parseInt(userData.subscriberCount).toLocaleString()} subscribers
+                {channelHandle} • {parseInt(userData.subscriberCount).toLocaleString()} subscribers
               </p>
             </div>
           </div>
         </section>
 
-        {/* Videos Section */}
         <section className="space-y-5">
           {videoIds.length > 0 ? (
             <>
-              <h2 className="font-semibold mb-2">Latest Uploads</h2>
+              <h2 className="font-semibold mb-2">Latest Uploads ({totalVideos.toLocaleString()})</h2>
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {videoIds.map((video) => (
                   <VideoCard
@@ -356,28 +328,37 @@ export default function ProfilePage() {
               </div>
             </>
           ) : (
-            <div className="col-span-full text-center py-12 text-[#a8a8a8]">
+            <div className="text-center py-12 text-[#a8a8a8] bg-[#1a1a1a]/50 rounded-xl p-8">
+              <svg className="w-16 h-16 mx-auto mb-4 text-[#4a5568] opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.665z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
               <h2 className="text-lg font-semibold mb-2">No videos yet</h2>
-              <p className="text-sm">Add your YouTube channel ID to see your latest uploads.</p>
+              <p className="text-sm">Connect your YouTube channel to see your latest uploads and analytics.</p>
+              <button
+                onClick={refreshProfile}
+                className="mt-4 px-4 py-2 bg-[#2a2a2a] hover:bg-[#3a3a3a] rounded-lg text-sm transition-colors"
+              >
+                Refresh Profile
+              </button>
             </div>
           )}
-           
-          {/* Sentinel element for infinite scroll */}
           {hasMore && (
-            <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
-              <span className="text-sm text-[#a8a8a8]">Loading more...</span>
+            <div ref={loadMoreRef} className="h-10 flex items-center justify-center py-8">
+              <div className="flex items-center gap-2 text-sm text-[#a8a8a8]">
+                <div className="w-4 h-4 border-2 border-[#4a5568] border-t-transparent rounded-full animate-spin"></div>
+                Loading more...
+              </div>
             </div>
           )}
         </section>
       </div>
 
-      {/* Modal */}
-      <EditAccountModal
+      <EditAccountModalWrapper
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        userChannelId={userData.channelId}
-        onSuccess={refreshProfile}
       />
-    </AppSidebarShell>
+    </>
   );
 }
+

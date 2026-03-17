@@ -31,5 +31,5 @@ export function middleware(request: NextRequest) {
 
 export const config = {
     // Explicitly list all paths you want the middleware to apply to
-    matcher: ['/', '/login', '/signup', '/verifyemail', '/analytics', '/bot', '/profile'],
+matcher: ['/', '/login', '/signup', '/verifyemail', '/analytics', '/bot', '/profile'],
 };

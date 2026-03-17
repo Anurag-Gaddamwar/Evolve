@@ -1,6 +1,6 @@
 import React from 'react';
 
-const VideoCard = ({ video, onCopy }) => {
+const VideoCard = ({ video, onCopy, copied = false }) => {
   return (
     <article className="group rounded-xl bg-[#171717] hover:bg-[#1a1a1a] shadow hover:shadow-lg transition transform hover:scale-[1.02] duration-200 overflow-hidden">
       <div className="relative overflow-hidden aspect-video">

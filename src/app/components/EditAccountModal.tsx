@@ -205,8 +205,8 @@ export default function EditAccountModal({
           <div className="border border-[#333] rounded">
             <div className="flex items-center justify-between w-full">
               <button
-                className="flex items-center gap-2 px-4 py-2 bg-[#232323] flex-1 cursor-not-allowed opacity-50"
-                onClick={() => toast.error('Guest users cannot edit profile. Please login with your own account.')}
+                className="flex items-center gap-2 px-4 py-2 bg-[#232323] hover:bg-[#2a2a2a] flex-1 transition-colors"
+                onClick={() => setShowChannelEdit(prev => !prev)}
               >
                 <span className="text-xs font-semibold text-[#ccc]">Edit Channel ID</span>
                 <svg
@@ -244,8 +244,8 @@ export default function EditAccountModal({
           <div className="border border-[#333] rounded mt-3">
             <div className="flex items-center justify-between w-full">
               <button
-                className="flex items-center gap-2 px-4 py-2 bg-[#232323] flex-1 cursor-not-allowed opacity-50"
-                onClick={() => toast.error('Guest users cannot edit profile. Please login with your own account.')}
+                className = "flex items-center gap-2 px-4 py-2 bg-[#232323] hover:bg-[#2a2a2a] flex-1 transition-colors"
+                onClick={() => setShowPwdEdit(prev => !prev)}
               >
                 <span className="text-xs font-semibold text-[#ccc]">Change Password</span>
                 <svg

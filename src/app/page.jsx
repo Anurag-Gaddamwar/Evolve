@@ -1,4 +1,4 @@
-import BotChat from "./bot/page";
+import BotChat from "./(dashboard)/bot/page";
 
 export default function Home() {
   return <BotChat />;

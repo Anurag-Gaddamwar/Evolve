@@ -66,29 +66,30 @@ export default function AppSidebarShell({ title = 'Evolve', children, showSideba
 
   const effectiveShowSidebar = showSidebar && !isMobile;
 
-  useEffect(() => {
-    if (!showLogout) return;
-
-    const loadUserInitial = async () => {
-      try {
-        const response = await fetch('/api/users/me', { method: 'GET' });
-        if (!response.ok) return;
-
-        const data = await response.json();
-        const username = (data?.data?.username || '').toString().trim();
-        const email = (data?.data?.email || '').toString().trim();
-
-        const firstName = username ? username.split(/\s+/)[0] : '';
-        const source = firstName || email;
-        const initial = source ? source.charAt(0).toUpperCase() : 'U';
-        setUserInitial(initial);
-      } catch (_error) {
-        // keep fallback initial
-      }
-    };
-
-    loadUserInitial();
-  }, [showLogout]);
+// Removed fetch useEffect to prevent sidebar re-render on refresh
+// useEffect(() => {
+  //   if (!showLogout) return;
+// 
+  //   const loadUserInitial = async () => {
+//       try {
+//         const response = await fetch('/api/users/me', { method: 'GET' });
+//         if (!response.ok) return;
+// 
+  //       const data = await response.json();
+  //       const username = (data?.data?.username || '').toString().trim();
+  //       const email = (data?.data?.email || '').toString().trim();
+// 
+  //       const firstName = username ? username.split(/\s+/)[0] : '';
+  //       const source = firstName || email;
+  //       const initial = source ? source.charAt(0).toUpperCase() : 'U';
+  //       setUserInitial(initial);
+  //     } catch (_error) {
+  //       // keep fallback initial
+  //     }
+  //   };
+  // 
+  //   loadUserInitial();
+  // }, [showLogout]);
 
   const handleNavigate = useCallback((href) => {
     router.push(href);
@@ -150,7 +151,7 @@ export default function AppSidebarShell({ title = 'Evolve', children, showSideba
         <section className={`flex-1 min-w-0 min-h-0 flex flex-col bg-[#212121] ${effectiveShowSidebar ? '' : 'w-full'}`}>
           <header
             className="fixed top-0 inset-x-0 z-30 h-12 px-3 md:px-5 border-b border-[#2a2a2a] bg-[#171717] flex items-center justify-between md:static md:z-auto"
-            style={isMobile ? { transform: `translateY(${mobileViewportTop}px)` } : undefined}
+            style={{ transform: `translateY(${mobileViewportTop}px)` }}
           >
             {/* optional left content (e.g. chat toggle) */}
             {headerLeft ? <div className="mr-2">{headerLeft}</div> : null}
@@ -178,7 +179,7 @@ export default function AppSidebarShell({ title = 'Evolve', children, showSideba
             {children}
           </div>
 
-          {showSidebar && isMobile && (
+{showSidebar && isMobile && (
             <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-[#2a2a2a] bg-[#171717] px-3 py-2">
               <div className="grid grid-cols-3 gap-2">
                 {navItems.map((item) => {
