@@ -60,7 +60,7 @@ const toPercent = (value, total) => {
 };
 
 const extractVideoId = (url) => {
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|(?:embed|v)\/*))([^?&"'>]+)/);
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|(?:embed|v|live)\/*))([^?&"'>]+)/);
   return match ? match[1] : null;
 };
 
