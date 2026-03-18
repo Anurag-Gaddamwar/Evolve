@@ -130,42 +130,59 @@ export default function EditAccountModal({
     }
   };
 
-  const updatePassword = async () => {
-    if (isGuest) {
-      toast.error("Guest users cannot change password");
-      return;
-    }
+const updatePassword = async () => {
+  if (isGuest) {
+    toast.error("Guest users cannot change password");
+    return;
+  }
 
-    setErrorMsg("");
-    if (!newPassword) {
-      setErrorMsg("No new password entered");
-      toast.error("No new password entered");
-      return;
-    }
-    if (!currentPassword) {
-      setErrorMsg("Current password required to change password");
-      toast.error("Current password required to change password");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setErrorMsg("New passwords do not match");
-      toast.error("New passwords do not match");
-      return;
-    }
-    try {
-      setLoading(true);
-      await axios.put("/api/users/me", {
-        currentPassword,
-        newPassword,
-      });
-      toast.success("Password updated");
-      close();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.error || "Update failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+  setErrorMsg("");
+
+  // 1. Required fields
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    toast.error("All fields are required");
+    return;
+  }
+
+  // 2. Old vs New same check
+  if (currentPassword === newPassword) {
+    toast.error("New password must be different from current password");
+    return;
+  }
+
+  // 3. Confirm match
+  if (newPassword !== confirmPassword) {
+    toast.error("New passwords do not match");
+    return;
+  }
+
+  // 4. Password strength rules
+  const passwordRegex =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
+  if (!passwordRegex.test(newPassword)) {
+    toast.error(
+      "Password must be 8+ chars with uppercase, lowercase, number & special character"
+    );
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    await axios.put("/api/users/me", {
+      currentPassword,
+      newPassword,
+    });
+
+    toast.success("Password updated");
+    close();
+  } catch (err: any) {
+    toast.error(err?.response?.data?.error || "Update failed");
+  } finally {
+    setLoading(false);
+  }
+};
 
 
   const deleteAccount = async () => {
@@ -294,58 +311,115 @@ export default function EditAccountModal({
     <div className="p-4 space-y-2">
 
       {/* Current Password */}
-      <div className="relative">
-        <input
-          type={showCurrentPwd ? "text" : "password"}
-          placeholder="Current password"
-          value={currentPassword}
-          onChange={(e) => {
-            if (isGuest) return;
-            setCurrentPassword(e.target.value);
-          }}
-          className={`w-full p-2 rounded-lg border outline-none ${
-            isGuest
-              ? 'bg-[#1a1a1a] border-[#333] text-gray-500 cursor-not-allowed'
-              : 'bg-[#222] border-[#333] focus:border-accent focus:ring-1 focus:ring-accent'
-          }`}
-        />
-      </div>
+<div className="relative">
+  <input
+    type={showCurrentPwd ? "text" : "password"}
+    placeholder="Current password"
+    value={currentPassword}
+    onChange={(e) => {
+      if (isGuest) return;
+      setCurrentPassword(e.target.value);
+    }}
+    className={`w-full p-2 pr-12 rounded-lg border outline-none ${
+      isGuest
+        ? 'bg-[#1a1a1a] border-[#333] text-gray-500 cursor-not-allowed'
+        : 'bg-[#222] border-[#333] focus:border-accent focus:ring-1 focus:ring-accent'
+    }`}
+  />
+
+  <button
+    type="button"
+    onClick={() => setShowCurrentPwd(p => !p)}
+    className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-200"
+    tabIndex={-1}
+  >
+    {showCurrentPwd ? (
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.269-2.943-9.543-7a9.968 9.968 0 012.223-3.502M9.879 9.879A3 3 0 0114.121 14.12" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6.225 6.225l11.55 11.55" />
+      </svg>
+    ) : (
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+      </svg>
+    )}
+  </button>
+</div>
 
       {/* New Password */}
-      <div className="relative">
-        <input
-          type={showNewPwd ? "text" : "password"}
-          placeholder="New password"
-          value={newPassword}
-          onChange={(e) => {
-            if (isGuest) return;
-            setNewPassword(e.target.value);
-          }}
-          className={`w-full p-2 rounded-lg border outline-none ${
-            isGuest
-              ? 'bg-[#1a1a1a] border-[#333] text-gray-500 cursor-not-allowed'
-              : 'bg-[#222] border-[#333] focus:border-accent focus:ring-1 focus:ring-accent'
-          }`}
-        />
-      </div>
+<div className="relative">
+  <input
+    type={showNewPwd ? "text" : "password"}
+    placeholder="New password"
+    value={newPassword}
+    onChange={(e) => {
+      if (isGuest) return;
+      setNewPassword(e.target.value);
+    }}
+    className={`w-full p-2 pr-12 rounded-lg border outline-none ${
+      isGuest
+        ? 'bg-[#1a1a1a] border-[#333] text-gray-500 cursor-not-allowed'
+        : 'bg-[#222] border-[#333] focus:border-accent focus:ring-1 focus:ring-accent'
+    }`}
+  />
+
+  <button
+    type="button"
+    onClick={() => setShowNewPwd(p => !p)}
+    className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-200"
+    tabIndex={-1}
+  >
+    {showNewPwd ? (
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.269-2.943-9.543-7a9.968 9.968 0 012.223-3.502M9.879 9.879A3 3 0 0114.121 14.12" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6.225 6.225l11.55 11.55" />
+      </svg>
+    ) : (
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+      </svg>
+    )}
+  </button>
+</div>
 
       {/* Confirm Password */}
-      <div className="relative">
-        <input
-          type={showConfirmPwd ? "text" : "password"}
-          placeholder="Confirm new password"
-          value={confirmPassword}
-          onChange={(e) => {
-            if (isGuest) return;
-            setConfirmPassword(e.target.value);
-          }}
-          className={`w-full p-2 rounded-lg border outline-none ${
-            isGuest
-              ? 'bg-[#1a1a1a] border-[#333] text-gray-500 cursor-not-allowed'
-              : 'bg-[#222] border-[#333] focus:border-accent focus:ring-1 focus:ring-accent'
-          }`}
-        />
-      </div>
+<div className="relative">
+  <input
+    type={showConfirmPwd ? "text" : "password"}
+    placeholder="Confirm new password"
+    value={confirmPassword}
+    onChange={(e) => {
+      if (isGuest) return;
+      setConfirmPassword(e.target.value);
+    }}
+    className={`w-full p-2 pr-12 rounded-lg border outline-none ${
+      isGuest
+        ? 'bg-[#1a1a1a] border-[#333] text-gray-500 cursor-not-allowed'
+        : 'bg-[#222] border-[#333] focus:border-accent focus:ring-1 focus:ring-accent'
+    }`}
+  />
+
+  <button
+    type="button"
+    onClick={() => setShowConfirmPwd(p => !p)}
+    className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-200"
+    tabIndex={-1}
+  >
+    {showConfirmPwd ? (
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.269-2.943-9.543-7a9.968 9.968 0 012.223-3.502M9.879 9.879A3 3 0 0114.121 14.12" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6.225 6.225l11.55 11.55" />
+      </svg>
+    ) : (
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+      </svg>
+    )}
+  </button>
+</div>
 
     </div>
   )}
@@ -368,22 +442,41 @@ export default function EditAccountModal({
   </button>
 ) : (
 <div className="space-y-2">
-  <div className="relative">
-    <input
-      type={showDeletePwd ? "text" : "password"}
-      placeholder="Confirm with current password"
-      value={currentPasswordDelete}
-      onChange={(e) => {
-        if (isGuest) return;
-        setCurrentPasswordDelete(e.target.value);
-      }}
-      className={`w-full p-2 rounded-lg border outline-none ${
-        isGuest
-          ? 'bg-[#1a1a1a] border-[#333] text-gray-500 cursor-not-allowed'
-          : 'bg-[#222] border-[#333] focus:border-accent focus:ring-1 focus:ring-accent'
-      }`}
-    />
-  </div>
+<div className="relative">
+  <input
+    type={showDeletePwd ? "text" : "password"}
+    placeholder="Confirm with current password"
+    value={currentPasswordDelete}
+    onChange={(e) => {
+      if (isGuest) return;
+      setCurrentPasswordDelete(e.target.value);
+    }}
+    className={`w-full p-2 pr-12 rounded-lg border outline-none ${
+      isGuest
+        ? 'bg-[#1a1a1a] border-[#333] text-gray-500 cursor-not-allowed'
+        : 'bg-[#222] border-[#333] focus:border-accent focus:ring-1 focus:ring-accent'
+    }`}
+  />
+
+  <button
+    type="button"
+    onClick={() => setShowDeletePwd(p => !p)}
+    className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-200"
+    tabIndex={-1}
+  >
+    {showDeletePwd ? (
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.269-2.943-9.543-7a9.968 9.968 0 012.223-3.502M9.879 9.879A3 3 0 0114.121 14.12" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6.225 6.225l11.55 11.55" />
+      </svg>
+    ) : (
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+      </svg>
+    )}
+  </button>
+</div>
 
   <div className="flex gap-2">
     <button

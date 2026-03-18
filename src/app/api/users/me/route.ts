@@ -23,56 +23,128 @@ export async function GET(request:NextRequest){
 }
 
 // update password and/or channel ID
+// update password and/or channel ID
 export async function PUT(request: NextRequest) {
     try {
         const userId = await getDataFromToken(request);
         const body = await request.json();
+
         const user = await User.findById(userId);
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
-        // Guest user restrictions
+
+        // 🔒 Guest user restrictions
         if (user.email === 'guestuser@gmail.com') {
             if (body.newPassword !== undefined) {
-                return NextResponse.json({ error: 'Sorry, guest account password cannot be changed. Please login with your own account.' }, { status: 403 });
+                return NextResponse.json(
+                    { error: 'Sorry, guest account password cannot be changed. Please login with your own account.' },
+                    { status: 403 }
+                );
+            }
+            if (body.channelId !== undefined) {
+                return NextResponse.json(
+                    { error: 'Guest account channel cannot be changed.' },
+                    { status: 403 }
+                );
             }
         }
-// Client-side validation + basic server check (no YT API dependency)
-        if (body.channelId !== undefined && body.channelId !== user.channelId) {
-          const trimmedId = body.channelId.trim();
-          if (!trimmedId || trimmedId.length < 10 || !/^[UC][A-Za-z0-9_-]{21}[0-9A-Za-z_-]*$/.test(trimmedId)) {
-            return NextResponse.json({ error: 'Invalid YouTube channel ID format. Must be UC... (24 chars).' }, { status: 400 });
-          }
-        }
-        // if user is trying to change password we must verify currentPassword
-        let match = false;
-        if (body.newPassword) {
-            if (!body.currentPassword) {
-                return NextResponse.json({ error: 'Current password required for password change' }, { status: 400 });
-            }
-            match = await bcryptjs.compare(body.currentPassword, user.password);
-            if (!match) {
-                return NextResponse.json({ error: 'Current password incorrect' }, { status: 401 });
-            }
-        } else if (body.currentPassword) {
-            // if password provided but only changing channelId, still verify optionally
-            match = await bcryptjs.compare(body.currentPassword, user.password);
-            if (!match) {
-                return NextResponse.json({ error: 'Current password incorrect' }, { status: 401 });
-            }
-        }
+
         const updates: any = {};
-        if (body.channelId !== undefined) updates.channelId = body.channelId;
+
+        // =========================
+        // ✅ CHANNEL ID VALIDATION
+        // =========================
+        if (body.channelId !== undefined && body.channelId !== user.channelId) {
+            const trimmedId = body.channelId.trim();
+
+            if (
+                !trimmedId ||
+                trimmedId.length < 24 ||
+                !/^[UC][A-Za-z0-9_-]{21}$/.test(trimmedId)
+            ) {
+                return NextResponse.json(
+                    { error: 'Invalid YouTube channel ID format. Must be UC... (24 chars).' },
+                    { status: 400 }
+                );
+            }
+
+            updates.channelId = trimmedId;
+        }
+
+        // =========================
+        // 🔐 PASSWORD VALIDATION
+        // =========================
         if (body.newPassword) {
+            // 1. Require current password
+            if (!body.currentPassword) {
+                return NextResponse.json(
+                    { error: 'Current password required for password change' },
+                    { status: 400 }
+                );
+            }
+
+            // 2. Verify current password
+            const isMatch = await bcryptjs.compare(body.currentPassword, user.password);
+            if (!isMatch) {
+                return NextResponse.json(
+                    { error: 'Current password incorrect' },
+                    { status: 401 }
+                );
+            }
+
+            // 3. Prevent same password reuse
+            if (body.currentPassword === body.newPassword) {
+                return NextResponse.json(
+                    { error: 'New password must be different from current password' },
+                    { status: 400 }
+                );
+            }
+
+            // 4. Confirm password match (optional but recommended)
+            if (body.confirmPassword && body.newPassword !== body.confirmPassword) {
+                return NextResponse.json(
+                    { error: 'Passwords do not match' },
+                    { status: 400 }
+                );
+            }
+
+            // 5. Password strength validation
+            const passwordRegex =
+                /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
+
+            if (!passwordRegex.test(body.newPassword)) {
+                return NextResponse.json(
+                    {
+                        error:
+                            'Password must be at least 8 characters long and include uppercase, lowercase, number, and special character',
+                    },
+                    { status: 400 }
+                );
+            }
+
+            // 6. Hash password
             const salt = await bcryptjs.genSalt(10);
             updates.password = await bcryptjs.hash(body.newPassword, salt);
         }
-        if (Object.keys(updates).length) {
+
+        // =========================
+        // 🚀 APPLY UPDATES
+        // =========================
+        if (Object.keys(updates).length > 0) {
             await User.findByIdAndUpdate(userId, updates);
         }
-        return NextResponse.json({ message: 'Account updated', success: true });
+
+        return NextResponse.json({
+            message: 'Account updated',
+            success: true,
+        });
+
     } catch (error) {
-        return NextResponse.json({ error: (error as any).message }, { status: 401 });
+        return NextResponse.json(
+            { error: (error as any).message },
+            { status: 500 }
+        );
     }
 }
 
