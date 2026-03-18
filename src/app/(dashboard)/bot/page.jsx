@@ -559,8 +559,8 @@ export default function BotChat() {
         {/* Chat list sidebar */}
         <aside className={`h-full shrink-0 border-r border-[#2a2a2a] bg-[#171717] transition-all duration-200 overflow-hidden ${sidebarCollapsed?'w-0':'w-[245px]'}`}>
           <div className="h-full flex flex-col">
-            <div className="h-14 px-4 border-b border-[#2a2a2a] flex items-center"><span className="font-semibold text-[15px]">Evolve</span></div>
-            <div className="p-3 border-b border-[#2a2a2a]"><button onClick={createNewChat} className="w-full rounded-lg border border-[#3b3b3b] bg-[#1f1f1f] px-3 py-2 text-sm text-left hover:bg-[#262626]">+ New chat</button></div>
+            {/* <div className="h-14 px-4 border-b border-[#2a2a2a] flex items-center"><span className="font-semibold text-[15px]">Evolve</span></div> */}
+            <div className="p-1 border-b border-[#2a2a2a]"><button onClick={createNewChat} className="w-full rounded-lg border border-[#3b3b3b] bg-[#1f1f1f] px-2 py-2 text-sm text-left hover:bg-[#262626]">+ New chat</button></div>
             <div className="px-3 py-3 border-b border-[#2a2a2a]"><input value={chatSearch} onChange={e=>setChatSearch(e.target.value)} className="w-full rounded-lg bg-[#111] border border-[#2f2f2f] px-3 py-2 text-sm text-[#d6d6d6] placeholder:text-[#a0a0a0] outline-none" placeholder="Search chats" /></div>
             <div className="px-3 pt-3 text-xs uppercase tracking-wide text-[#9f9f9f]">Your chats</div>
             <ChatList {...chatListProps} onSelect={id=>handleChatSelect(id,false)} />

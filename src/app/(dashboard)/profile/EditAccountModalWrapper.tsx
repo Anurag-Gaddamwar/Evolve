@@ -1,20 +1,45 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import EditAccountModal from "../../components/EditAccountModal";
+import axios from "axios";
+import { toast } from "react-hot-toast";
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  isGuest?: boolean;
 }
 
-export default function EditAccountModalWrapper({ isOpen, onClose }: Props) {
+export default function EditAccountModalWrapper({ isOpen, onClose, isGuest }: Props) {
+  const [userChannelId, setUserChannelId] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+
   const refreshProfile = () => {
     window.location.reload();
   };
 
-  // Hardcoded for now - replace with real user state when available
-  const userChannelId = "UC_x5XG1OV2P6uZZ5FSM9Ttw"; // Your actual channel ID
+  useEffect(() => {
+    if (!isOpen) return; // fetch only when modal opens
+
+    const fetchUser = async () => {
+      try {
+        setLoading(true);
+        const res = await axios.get("/api/users/me");
+        const channelId = res.data?.data?.channelId || "";
+        setUserChannelId(channelId);
+      } catch (err) {
+        console.error("Failed to fetch user data", err);
+        toast.error("Unable to load user details");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, [isOpen]);
+
+  if (loading) return null; // or loader
 
   return (
     <EditAccountModal
@@ -22,7 +47,7 @@ export default function EditAccountModalWrapper({ isOpen, onClose }: Props) {
       onClose={onClose}
       userChannelId={userChannelId}
       onSuccess={refreshProfile}
+      isGuest={isGuest}
     />
   );
 }
-

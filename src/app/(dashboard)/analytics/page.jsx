@@ -916,7 +916,7 @@ const CommentSummarizer = () => {
   };
 
   return (
-        <div className="max-w-[1320px] mx-auto w-full px-2 sm:px-6 text-[#ececec]">
+        <div className="max-w-[1320px] mx-auto w-full px-2 sm:px-6 text-[#ececec] pb-24 md:pb-0">
 
         {/* header + form shown only before report generated */}
         {!hasLiveReport ? (

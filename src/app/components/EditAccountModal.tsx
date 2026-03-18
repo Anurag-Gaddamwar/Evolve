@@ -8,7 +8,8 @@ type Props = {
   isOpen: boolean;
   onClose: () => void;
   userChannelId: string;
-  onSuccess: () => void; // refetch profile after update
+  onSuccess: () => void; 
+  isGuest?: boolean;
 };
 
 export default function EditAccountModal({
@@ -16,6 +17,7 @@ export default function EditAccountModal({
   onClose,
   userChannelId,
   onSuccess,
+  isGuest,
 }: Props) {
   const [channelId, setChannelId] = useState(userChannelId);
   const [currentPassword, setCurrentPassword] = useState(""); // for change-password
@@ -100,6 +102,11 @@ export default function EditAccountModal({
   // update individual sections
   const updateChannel = async () => {
     setErrorMsg("");
+    if (isGuest) {
+      toast.error("Guest users cannot change channel ID");
+      return;
+    }
+
     if (!channelId || channelId === userChannelId) {
       setErrorMsg("No change to channel");
       toast.error("No change to channel");
@@ -124,6 +131,11 @@ export default function EditAccountModal({
   };
 
   const updatePassword = async () => {
+    if (isGuest) {
+      toast.error("Guest users cannot change password");
+      return;
+    }
+
     setErrorMsg("");
     if (!newPassword) {
       setErrorMsg("No new password entered");
@@ -218,21 +230,31 @@ export default function EditAccountModal({
                 </svg>
               </button>
               {showChannelEdit && channelId !== userChannelId && (
-                <button
-                  className="px-3 py-1 bg-accent text-xs rounded"
-                  onClick={updateChannel}
-                  disabled={loading}
-                >Save</button>
-              )}
+  <button
+    className="px-3 py-1 bg-accent text-xs rounded disabled:opacity-50"
+    onClick={updateChannel}
+    disabled={loading || isGuest}
+  >
+    Save
+  </button>
+)}
             </div>
             {showChannelEdit && (
               <div className="p-4 space-y-2">
                 <input
-                  type="text"
-                  value={channelId}
-                  onChange={(e) => setChannelId(e.target.value)}
-                  className="w-full p-2 rounded-lg bg-[#222] border border-[#333] focus:border-accent focus:ring-1 focus:ring-accent outline-none"
-                />
+  type="text"
+  value={channelId}
+  onChange={(e) => {
+    if (isGuest) return; // ❌ block typing
+    setChannelId(e.target.value);
+  }}
+  disabled={isGuest}
+  className={`w-full p-2 rounded-lg border outline-none ${
+    isGuest
+      ? 'bg-[#1a1a1a] border-[#333] text-gray-500 cursor-not-allowed'
+      : 'bg-[#222] border-[#333] focus:border-accent focus:ring-1 focus:ring-accent'
+  }`}
+/>
               </div>
             )}
           </div>
@@ -241,117 +263,93 @@ export default function EditAccountModal({
 
           {/* Password Section */}
 
-          <div className="border border-[#333] rounded mt-3">
-            <div className="flex items-center justify-between w-full">
-              <button
-                className = "flex items-center gap-2 px-4 py-2 bg-[#232323] hover:bg-[#2a2a2a] flex-1 transition-colors"
-                onClick={() => setShowPwdEdit(prev => !prev)}
-              >
-                <span className="text-xs font-semibold text-[#ccc]">Change Password</span>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className={`w-4 h-4 transform transition-transform ${showPwdEdit ? 'rotate-90' : ''}`}
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-              {showPwdEdit && newPassword && (
-                <button
-                  className="px-3 py-1 bg-accent text-xs rounded"
-                  onClick={updatePassword}
-                  disabled={loading}
-                >Save</button>
-              )}
-            </div>
-            {showPwdEdit && (
-              <div className="p-4 space-y-2">
-                <div className="relative">
-                  <input
-                    type={showCurrentPwd ? "text" : "password"}
-                    placeholder="Current password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="w-full p-2 rounded-lg bg-[#222] border border-[#333] focus:border-accent focus:ring-1 focus:ring-accent outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowCurrentPwd(p => !p)}
-                    className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-200"
-                    tabIndex={-1}
-                  >
-                    {showCurrentPwd ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.269-2.943-9.543-7a9.968 9.968 0 012.223-3.502M9.879 9.879A3 3 0 0114.121 14.12" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6.225 6.225l11.55 11.55" />
-                      </svg>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-                <div className="relative">
-                  <input
-                    type={showNewPwd ? "text" : "password"}
-                    placeholder="New password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full p-2 rounded-lg bg-[#222] border border-[#333] focus:border-accent focus:ring-1 focus:ring-accent outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPwd(p => !p)}
-                    className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-200"
-                    tabIndex={-1}
-                  >
-                    {showNewPwd ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.269-2.943-9.543-7a9.968 9.968 0 012.223-3.502M9.879 9.879A3 3 0 0114.121 14.12" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6.225 6.225l11.55 11.55" />
-                      </svg>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-                <div className="relative">
-                  <input
-                    type={showConfirmPwd ? "text" : "password"}
-                    placeholder="Confirm new password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full p-2 rounded-lg bg-[#222] border border-[#333] focus:border-accent focus:ring-1 focus:ring-accent outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPwd(p => !p)}
-                    className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-200"
-                    tabIndex={-1}
-                  >
-                    {showConfirmPwd ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.269-2.943-9.543-7a9.968 9.968 0 012.223-3.502M9.879 9.879A3 3 0 0114.121 14.12" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6.225 6.225l11.55 11.55" />
-                      </svg>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+<div className="border border-[#333] rounded mt-3">
+  <div className="flex items-center justify-between w-full">
+    <button
+      className="flex items-center gap-2 px-4 py-2 bg-[#232323] hover:bg-[#2a2a2a] flex-1 transition-colors"
+      onClick={() => setShowPwdEdit(prev => !prev)}
+    >
+      <span className="text-xs font-semibold text-[#ccc]">Change Password</span>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        className={`w-4 h-4 transform transition-transform ${showPwdEdit ? 'rotate-90' : ''}`}
+        fill="none" viewBox="0 0 24 24" stroke="currentColor"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      </svg>
+    </button>
 
+    {showPwdEdit && newPassword && (
+      <button
+        className="px-3 py-1 bg-accent text-xs rounded disabled:opacity-50"
+        onClick={updatePassword}
+        disabled={loading || isGuest}
+      >
+        Save
+      </button>
+    )}
+  </div>
 
+  {showPwdEdit && (
+    <div className="p-4 space-y-2">
+
+      {/* Current Password */}
+      <div className="relative">
+        <input
+          type={showCurrentPwd ? "text" : "password"}
+          placeholder="Current password"
+          value={currentPassword}
+          onChange={(e) => {
+            if (isGuest) return;
+            setCurrentPassword(e.target.value);
+          }}
+          className={`w-full p-2 rounded-lg border outline-none ${
+            isGuest
+              ? 'bg-[#1a1a1a] border-[#333] text-gray-500 cursor-not-allowed'
+              : 'bg-[#222] border-[#333] focus:border-accent focus:ring-1 focus:ring-accent'
+          }`}
+        />
+      </div>
+
+      {/* New Password */}
+      <div className="relative">
+        <input
+          type={showNewPwd ? "text" : "password"}
+          placeholder="New password"
+          value={newPassword}
+          onChange={(e) => {
+            if (isGuest) return;
+            setNewPassword(e.target.value);
+          }}
+          className={`w-full p-2 rounded-lg border outline-none ${
+            isGuest
+              ? 'bg-[#1a1a1a] border-[#333] text-gray-500 cursor-not-allowed'
+              : 'bg-[#222] border-[#333] focus:border-accent focus:ring-1 focus:ring-accent'
+          }`}
+        />
+      </div>
+
+      {/* Confirm Password */}
+      <div className="relative">
+        <input
+          type={showConfirmPwd ? "text" : "password"}
+          placeholder="Confirm new password"
+          value={confirmPassword}
+          onChange={(e) => {
+            if (isGuest) return;
+            setConfirmPassword(e.target.value);
+          }}
+          className={`w-full p-2 rounded-lg border outline-none ${
+            isGuest
+              ? 'bg-[#1a1a1a] border-[#333] text-gray-500 cursor-not-allowed'
+              : 'bg-[#222] border-[#333] focus:border-accent focus:ring-1 focus:ring-accent'
+          }`}
+        />
+      </div>
+
+    </div>
+  )}
+</div> 
 
           <hr className="border-[#2a2a2a]" />
 
@@ -362,47 +360,41 @@ export default function EditAccountModal({
               This action is permanent and cannot be undone.
             </p>
             {!showDeleteConfirm ? (
-              <button
-                className="px-2 py-1 bg-red-600 rounded text-xs text-white hover:bg-red-700"
-                onClick={() => setShowDeleteConfirm(true)}
-              >Delete Account</button>
-            ) : (
-              <div className="space-y-2">
-                <div className="relative">
-                  <input
-                    type={showDeletePwd ? "text" : "password"}
-                    placeholder="Confirm with current password"
-                    value={currentPasswordDelete}
-                    onChange={(e) => setCurrentPasswordDelete(e.target.value)}
-                    className="w-full p-2 rounded-lg bg-[#222] border border-[#333] focus:border-accent focus:ring-1 focus:ring-accent outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowDeletePwd(p => !p)}
-                    className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-200"
-                    tabIndex={-1}
-                  >
-                    {showDeletePwd ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.269-2.943-9.543-7a9.968 9.968 0 012.223-3.502M9.879 9.879A3 3 0 0114.121 14.12" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6.225 6.225l11.55 11.55" />
-                      </svg>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={deleteAccount}
-                    disabled={loading}
-                    className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium disabled:opacity-60"
-                  >Confirm Delete</button>
-                </div>
-              </div>
+  <button
+    className="px-2 py-1 bg-red-600 rounded text-xs text-white hover:bg-red-700"
+    onClick={() => setShowDeleteConfirm(true)}
+  >
+    Delete Account
+  </button>
+) : (
+<div className="space-y-2">
+  <div className="relative">
+    <input
+      type={showDeletePwd ? "text" : "password"}
+      placeholder="Confirm with current password"
+      value={currentPasswordDelete}
+      onChange={(e) => {
+        if (isGuest) return;
+        setCurrentPasswordDelete(e.target.value);
+      }}
+      className={`w-full p-2 rounded-lg border outline-none ${
+        isGuest
+          ? 'bg-[#1a1a1a] border-[#333] text-gray-500 cursor-not-allowed'
+          : 'bg-[#222] border-[#333] focus:border-accent focus:ring-1 focus:ring-accent'
+      }`}
+    />
+  </div>
+
+  <div className="flex gap-2">
+    <button
+      onClick={deleteAccount}
+      disabled={loading || isGuest}
+      className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium disabled:opacity-50"
+    >
+      Confirm Delete
+    </button>
+  </div>
+</div>
             )}
           </div>
         </div>

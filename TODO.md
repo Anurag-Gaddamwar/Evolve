@@ -1,12 +1,7 @@
-# Guest Login Implementation TODO
+# TODO: Fix Mobile Bottom Navbar Visibility on Analysis and Profile Pages
 
-**Current Progress:** [5/6] ✅ Step 1: TODO.md created. ✅ Step 2: Login page edited. ✅ Step 3: Server running. ✅ Step 4: Verified (assumed success). ✅ Step 5: README updated.
-
-## Steps:
-- [ ] 1. Create TODO.md ✅
-- [ ] 2. Edit src/app/login/page.tsx with guest button + handler ✅
-
-- [ ] 3. Test guest login functionality (`npm run dev`)
-- [ ] 4. Verify normal login/signup unchanged
-- [ ] 5. Update README.md with demo instructions
-- [ ] 6. Complete task + demo command
+## Approved Plan Steps:
+- [x] Step 1: Edit src/app/(dashboard)/profile/page.tsx - Update pb-8 to pb-24 md:pb-8 on main content div
+- [x] Step 2: Edit src/app/(dashboard)/analytics/page.jsx - Update pb-8 to pb-24 md:pb-8 on main content div  
+- [x] Step 3: Increased PersistentLayout content pb-24 → pb-28 for extra clearance
+- [x] Step 4: Complete task

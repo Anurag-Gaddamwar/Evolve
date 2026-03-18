@@ -224,7 +224,7 @@ export default function PersistentLayout({ children }: PersistentLayoutProps) {
             </aside>
           )}
 
-          <section className={`flex-1 min-w-0 min-h-0 flex flex-col bg-[#212121] ${effectiveShowSidebar ? '' : 'w-full'}`}>
+          <section className={`flex-1 min-w-0 min-h-0 flex flex-col bg-[#212121] ${effectiveShowSidebar ? '' : 'w-full'}`} data-debug-layout={pathname} data-debug-is-mobile={isMobile} data-debug-show-sidebar={effectiveShowSidebar}>
             <header
               className="fixed top-0 inset-x-0 z-30 h-12 px-3 md:px-5 border-b border-[#2a2a2a] bg-[#171717] flex items-center justify-between md:static md:z-auto"
               style={isMobile ? { transform: `translateY(${mobileViewportTop}px)` } : undefined}
@@ -240,12 +240,12 @@ export default function PersistentLayout({ children }: PersistentLayoutProps) {
               </button>
             </header>
 
-            <div className="flex-1 min-h-0 overflow-visible md:overflow-y-auto app-scrollbar px-4 md:px-6 pt-[72px] md:pt-6 pb-24 md:py-6">
+            <div className="flex-1 min-h-0 overflow-visible md:overflow-y-auto app-scrollbar px-4 md:px-6 pt-[72px] md:pt-6 pb-28 md:pb-6">
               {children}
             </div>
 
             {isMobile && (
-              <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-[#2a2a2a] bg-[#171717] px-3 py-2">
+              <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-[#2a2a2a] bg-[#171717] px-3 py-2" data-debug-nav="mobile-nav-rendered">
                 <div className="grid grid-cols-3 gap-2">
                   {navItems.map((item) => {
                     const active = item.isActive(activePath);

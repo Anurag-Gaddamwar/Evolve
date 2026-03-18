@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
+import { BotChatProvider, useBotChat } from './BotChatContext';
 import { usePathname, useRouter } from 'next/navigation';
 
 const navItems = [
@@ -8,214 +9,211 @@ const navItems = [
     id: 'bot',
     href: '/bot',
     icon: '✦',
-    label: 'Bot',
-    isActive: (path) => path === '/' || path === '/bot' || path.startsWith('/bot/'),
+    isActive: (path: string) =>
+      path === '/' || path === '/bot' || path.startsWith('/bot/'),
   },
   {
     id: 'analytics',
     href: '/analytics',
     icon: '◉',
-    label: 'Analysis',
-    isActive: (path) => path === '/analytics' || path.startsWith('/analytics/'),
+    isActive: (path: string) =>
+      path === '/analytics' || path.startsWith('/analytics/'),
   },
 ];
 
-interface AppSidebarShellProps {
+interface Props {
   title?: string;
   children: React.ReactNode;
   showSidebar?: boolean;
-  showLogout?: boolean;
-  headerLeft?: React.ReactNode;
 }
 
-export default function AppSidebarShell({ title = 'Evolve', children, showSidebar = true, showLogout = true, headerLeft = null }: AppSidebarShellProps) {
+export default function AppSidebarShell({
+  title = 'Evolve',
+  children,
+  showSidebar = true,
+}: Props) {
   const router = useRouter();
   const pathname = usePathname();
-  const [userInitial, setUserInitial] = useState('U');
-  // start as mobile to avoid showing sidebar during hydration; update on mount
+  const isBotPage = pathname?.startsWith('/bot');
+
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(true);
-  const [mobileViewportTop, setMobileViewportTop] = useState(0);
+  const [userInitial, setUserInitial] = useState('U');
 
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  useEffect(() => {
-    if (!isMobile || typeof window === 'undefined') return;
-
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-
-    const syncViewportTop = () => {
-      setMobileViewportTop(viewport.offsetTop || 0);
-    };
-
-    syncViewportTop();
-    viewport.addEventListener('resize', syncViewportTop);
-    viewport.addEventListener('scroll', syncViewportTop);
-    return () => {
-      viewport.removeEventListener('resize', syncViewportTop);
-      viewport.removeEventListener('scroll', syncViewportTop);
-    };
-  }, [isMobile]);
-
-  const effectiveShowSidebar = showSidebar && !isMobile;
-
-// Removed fetch useEffect to prevent sidebar re-render on refresh
-// useEffect(() => {
-  //   if (!showLogout) return;
-// 
-  //   const loadUserInitial = async () => {
-//       try {
-//         const response = await fetch('/api/users/me', { method: 'GET' });
-//         if (!response.ok) return;
-// 
-  //       const data = await response.json();
-  //       const username = (data?.data?.username || '').toString().trim();
-  //       const email = (data?.data?.email || '').toString().trim();
-// 
-  //       const firstName = username ? username.split(/\s+/)[0] : '';
-  //       const source = firstName || email;
-  //       const initial = source ? source.charAt(0).toUpperCase() : 'U';
-  //       setUserInitial(initial);
-  //     } catch (_error) {
-  //       // keep fallback initial
-  //     }
-  //   };
-  // 
-  //   loadUserInitial();
-  // }, [showLogout]);
-
-  const handleNavigate = useCallback((href) => {
-    router.push(href);
-  }, [router]);
   const activePath = pathname || '';
 
-  const navButtonClass = (isActive) =>
-    `w-9 h-9 rounded-lg border text-[#d9d9d9] transition-colors ${
-      isActive
-        ? 'border-[#3a3a3a] bg-[#242424] text-white'
-        : 'border-[#333] hover:bg-[#232323]'
-    }`;
+  const handleNavigate = useCallback(
+    (href: string) => router.push(href),
+    [router]
+  );
 
-  return (
-    <div
-      className="h-full w-full overflow-x-hidden md:overflow-hidden bg-[#212121] text-[#ececec]"
-    >
-      <div className="min-h-full md:h-full w-full flex">
-        {effectiveShowSidebar && (
-          <aside className="flex h-full w-[60px] shrink-0 border-r border-[#2a2a2a] bg-[#171717] flex-col items-center py-3 gap-3">
-            <div className="w-8 h-8 rounded-full bg-[#202020] border border-[#313131] flex items-center justify-center text-xs">◎</div>
+  // ================= USER =================
+useEffect(() => {
+  const loadUser = async () => {
+    try {
+      const res = await fetch('/api/users/me');
+      if (!res.ok) return;
 
-            <div className="mt-auto flex flex-col items-center gap-3">
-              <div className="mb-1 flex flex-col items-center">
-                <span className="[writing-mode:vertical-rl] rotate-180 text-[10px] uppercase tracking-[0.28em] text-[#7f7f7f]">
-                  Features
-                </span>
-                <span className="text-[10px] text-[#7f7f7f] leading-none">↑</span>
-              </div>
+      const data = await res.json();
 
-              {navItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => handleNavigate(item.href)}
-                  className={navButtonClass(item.isActive(activePath))}
-                  title={item.label}
-                  aria-label={`Open ${item.label.toLowerCase()}`}
-                >
-                  {item.icon}
-                </button>
-              ))}
+      const username = data?.data?.username || '';
+      const email = data?.data?.email || '';
 
-              <button
-                onClick={() => handleNavigate('/profile')}
-                className={`w-8 h-8 rounded-full text-[11px] font-semibold flex items-center justify-center transition-colors ${
-                  activePath === '/profile' || activePath.startsWith('/profile/')
-                    ? 'bg-[#24a587] text-white'
-                    : 'bg-[#1f7f67] hover:opacity-95'
-                }`}
-                title="Profile"
-                aria-label="Open profile"
-              >
-                {userInitial}
-              </button>
-            </div>
-          </aside>
-        )}
+      const source = username || email;
+      const initial = source ? source.charAt(0).toUpperCase() : 'U';
 
-        <section className={`flex-1 min-w-0 min-h-0 flex flex-col bg-[#212121] ${effectiveShowSidebar ? '' : 'w-full'}`}>
-          <header
-            className="fixed top-0 inset-x-0 z-30 h-12 px-3 md:px-5 border-b border-[#2a2a2a] bg-[#171717] flex items-center justify-between md:static md:z-auto"
-            style={{ transform: `translateY(${mobileViewportTop}px)` }}
+      setUserInitial(initial);
+    } catch {
+      // fallback stays "U"
+    }
+  };
+
+  loadUser();
+}, []);
+
+  // ================= MOBILE =================
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  // ================= NAV BUTTON =================
+  const NavButton = ({ item }: { item: (typeof navItems)[0] }) => {
+    const isActive = item.isActive(activePath);
+
+    return (
+      <button
+        onClick={() => handleNavigate(item.href)}
+        className={`w-9 h-9 rounded-lg border text-[#d9d9d9] transition-colors flex items-center justify-center ${
+          isActive
+            ? 'border-[#3a3a3a] bg-[#242424] text-white'
+            : 'border-[#333] hover:bg-[#232323]'
+        }`}
+      >
+        {item.icon}
+      </button>
+    );
+  };
+
+  // ================= PROFILE =================
+  const ProfileBtn = () => (
+  <button
+    onClick={() => handleNavigate('/profile')}
+    className={`w-8 h-8 rounded-full text-[11px] font-semibold flex items-center justify-center transition-colors ${
+      activePath.startsWith('/profile')
+        ? 'bg-[#24a587] text-white'
+        : 'bg-[#1f7f67] hover:opacity-95'
+    }`}
+    title="Profile"
+  >
+    {userInitial}
+  </button>
+);
+
+  // ================= BOT CHAT SIDEBAR =================
+  const BotSidebar = () => {
+    const {
+      filteredChats,
+      createNewChat,
+      chatSearch,
+      setChatSearch,
+      selectChat,
+      activeChatId,
+    } = useBotChat();
+
+    return (
+      <aside
+        className={`transition-all duration-200 ${
+          sidebarCollapsed ? 'w-0' : 'w-[260px]'
+        } bg-[#171717] border-r border-[#2a2a2a] overflow-hidden`}
+      >
+        <div className="p-3 border-b border-[#2a2a2a]">
+          <button
+            onClick={createNewChat}
+            className="w-full rounded-lg border border-[#3b3b3b] bg-[#1f1f1f] px-3 py-2 text-sm hover:bg-[#262626]"
           >
-            {/* optional left content (e.g. chat toggle) */}
-            {headerLeft ? <div className="mr-2">{headerLeft}</div> : null}
-            <div className="flex items-center gap-1 font-semibold text-[18px] md:text-[20px] leading-none">
-              <span className="text-[19px] md:text-[21px]">{title}</span>
-            </div>
-            {showLogout && (
-              <button
-                onClick={async () => {
-                  try {
-                    await fetch('/api/users/logout', { method: 'GET' });
-                    router.push('/login');
-                  } catch (error) {
-                    console.error('Logout failed:', error);
-                  }
-                }}
-                className="rounded-lg border border-[#3a3a3a] bg-[#242424] px-3 py-1 text-sm hover:bg-[#2f2f2f] transition-colors"
-              >
-                Logout
-              </button>
-            )}
-          </header>
+            + New chat
+          </button>
+        </div>
 
-          <div className="flex-1 min-h-0 overflow-visible md:overflow-y-auto app-scrollbar px-4 md:px-6 pt-[72px] md:pt-6 pb-24 md:py-6">
-            {children}
+        <div className="p-3 border-b border-[#2a2a2a]">
+          <input
+            value={chatSearch}
+            onChange={e => setChatSearch(e.target.value)}
+            className="w-full rounded-lg bg-[#111] border border-[#2f2f2f] px-3 py-2 text-sm"
+            placeholder="Search chats"
+          />
+        </div>
+
+        <div className="p-2">
+          {filteredChats.map(chat => (
+            <div
+              key={chat.id}
+              onClick={() => selectChat(chat.id)}
+              className={`p-2 rounded cursor-pointer ${
+                chat.id === activeChatId
+                  ? 'bg-[#242424]'
+                  : 'hover:bg-[#1f1f1f]'
+              }`}
+            >
+              {chat.title}
+            </div>
+          ))}
+        </div>
+      </aside>
+    );
+  };
+
+  // ================= LAYOUT =================
+  const Layout = () => (
+    <div className="flex h-full bg-[#212121] text-[#ececec]">
+      {/* LEFT SIDEBAR */}
+      {showSidebar && !isMobile && (
+        <aside className="flex w-[60px] border-r border-[#2a2a2a] bg-[#171717] flex-col items-center py-3">
+          <div className="w-8 h-8 rounded-full bg-[#202020] flex items-center justify-center">
+            ◎
           </div>
 
-{showSidebar && isMobile && (
-            <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-[#2a2a2a] bg-[#171717] px-3 py-2">
-              <div className="grid grid-cols-3 gap-2">
-                {navItems.map((item) => {
-                  const active = item.isActive(activePath);
-                  return (
-                    <button
-                      key={`mobile-${item.id}`}
-                      onClick={() => handleNavigate(item.href)}
-                      className={`h-11 rounded-lg border text-sm transition-colors ${
-                        active
-                          ? 'border-[#3a3a3a] bg-[#242424] text-white'
-                          : 'border-[#333] text-[#d9d9d9] hover:bg-[#232323]'
-                      }`}
-                      aria-label={`Open ${item.label.toLowerCase()}`}
-                    >
-                      {item.label}
-                    </button>
-                  );
-                })}
-                <button
-                  onClick={() => handleNavigate('/profile')}
-                  className={`h-11 rounded-lg border text-sm transition-colors ${
-                    activePath === '/profile' || activePath.startsWith('/profile/')
-                      ? 'border-[#3a3a3a] bg-[#242424] text-white'
-                      : 'border-[#333] text-[#d9d9d9] hover:bg-[#232323]'
-                  }`}
-                  aria-label="Open profile"
-                >
-                  Profile
-                </button>
-              </div>
-            </nav>
+          {isBotPage && (
+            <button
+              onClick={() => setSidebarCollapsed(false)}
+              className="mt-2 w-9 h-9 rounded-lg border border-[#333] hover:bg-[#232323]"
+            >
+              »
+            </button>
           )}
-        </section>
 
-      </div>
+          <div className="mt-auto flex flex-col gap-3 items-center">
+            {navItems.map(item => (
+              <NavButton key={item.id} item={item} />
+            ))}
+
+            <ProfileBtn />
+          </div>
+        </aside>
+      )}
+
+      {/* BOT SIDEBAR */}
+      {isBotPage && !sidebarCollapsed && <BotSidebar />}
+
+      {/* MAIN */}
+      <section className="flex-1 flex flex-col">
+        <header className="h-12 px-4 border-b border-[#2a2a2a] bg-[#171717] flex items-center">
+          <span className="font-semibold text-[18px]">{title}</span>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-4">{children}</div>
+      </section>
     </div>
+  );
+
+  return isBotPage ? (
+    <BotChatProvider>
+      <Layout />
+    </BotChatProvider>
+  ) : (
+    <Layout />
   );
 }

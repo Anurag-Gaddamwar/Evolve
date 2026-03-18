@@ -26,6 +26,7 @@ type UserData = {
   videoCount: string;
 };
 
+
 const normalizeVideos = (items: any[]): VideoItem[] => {
   const unique: VideoItem[] = [];
   const seen = new Set<string>();
@@ -278,15 +279,15 @@ export default function ProfilePage() {
 
   return (
     <>
-      <div className="max-w-[1320px] mx-auto w-full text-[#ececec] space-y-6 pb-8">
+        <div className="max-w-[1320px] mx-auto w-full text-[#ececec] space-y-6 pb-24 md:pb-8">
         <section className="relative rounded-2xl border border-[#2a2a2a] bg-[#171717] p-6">
           <div className="absolute top-4 right-4">
             <button
-              onClick={() => setShowModal(true)}
-              className={`px-3 py-1 rounded text-sm ${userData.email === 'guestuser@gmail.com' ? 'bg-gray-600 cursor-default text-gray-400 hover:bg-gray-600' : 'bg-[#2a2a2a] hover:bg-[#3a3a3a]'}`}
-            >
-              Edit
-            </button>
+  onClick={() => setShowModal(true)}
+  className="px-3 py-1 rounded text-sm bg-[#2a2a2a] hover:bg-[#3a3a3a]"
+>
+  Edit
+</button>
           </div>
           <div className="flex items-center gap-5">
             <div className="w-28 h-28 rounded-full overflow-hidden bg-[#222]">
@@ -355,9 +356,10 @@ export default function ProfilePage() {
       </div>
 
       <EditAccountModalWrapper
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-      />
+  isOpen={showModal}
+  onClose={() => setShowModal(false)}
+  isGuest={userData.email === 'guestuser@gmail.com'}
+/>
     </>
   );
 }
